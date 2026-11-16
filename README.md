@@ -12,7 +12,7 @@ Replaces the shared Excel checklist so that every team works on one version and 
   3. **Captured in system** - the data capturer records how many were captured (due by the system reporting time, 15:00 by default).
 - Ticking a check with no number counts as zero documents. Entering a number ticks the check.
 - Lines whose physical responsible person is `N/A` only have the capture check.
-- Today's sheet is editable by everyone. Previous days are read-only, except for an admin.
+- Today's sheet is editable by everyone. Previous days are locked; an admin (or everyone, when no admin code is set) can unlock a day to correct it.
 
 ## Pages
 

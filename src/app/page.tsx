@@ -342,8 +342,8 @@ export default function DailyChecksPage() {
               <>
                 <div className={`border-t border-ink-100 bg-ink-50 px-4 py-2 ${HEADER_GRID}`} aria-hidden>
                   <span className="caps">Stock movement</span>
-                  <span className="caps">From</span>
-                  <span className="caps">To</span>
+                  <span className="caps">From WH</span>
+                  <span className="caps">To WH</span>
                   {STEPS.map((s) => (
                     <span key={s} className="caps">
                       {STEP_LABEL[s]}

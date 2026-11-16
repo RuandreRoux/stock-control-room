@@ -5,9 +5,9 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 const NAV = [
-  { href: "/", label: "Daily checks" },
-  { href: "/exceptions", label: "Exceptions" },
-  { href: "/admin", label: "Admin" },
+  { href: "/", label: "Daily checks", short: "" },
+  { href: "/exceptions", label: "Exceptions dashboard", short: "Exceptions" },
+  { href: "/admin", label: "Admin", short: "" },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -44,7 +44,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         : "text-ink-600 hover:bg-brand-50 hover:text-brand"
                     }`}
                   >
-                    {item.label}
+                    {item.short ? (
+                      <>
+                        <span className="sm:hidden">{item.short}</span>
+                        <span className="hidden sm:inline">{item.label}</span>
+                      </>
+                    ) : (
+                      item.label
+                    )}
                   </Link>
                 );
               })}

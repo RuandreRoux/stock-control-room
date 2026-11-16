@@ -166,8 +166,8 @@ export function CheckRow({
           <p className="caps wide:hidden">Stock movement</p>
           <p className="font-display text-[13px] font-semibold leading-snug text-ink-900">{line.stockMovement}</p>
         </div>
-        <Place label="From" value={line.fromWarehouse} />
-        <Place label="To" value={line.toWarehouse} />
+        <Place label="From WH" value={line.fromWarehouse} />
+        <Place label="To WH" value={line.toWarehouse} />
 
         {STEPS.map((step) => {
           const info = stepInfo(line, step);

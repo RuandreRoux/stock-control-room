@@ -40,8 +40,8 @@ const SECTIONS: {
     fields: [
       { key: "category", label: "Category" },
       { key: "stockMovement", label: "Stock movement" },
-      { key: "fromWarehouse", label: "From warehouse" },
-      { key: "toWarehouse", label: "To warehouse" },
+      { key: "fromWarehouse", label: "From WH" },
+      { key: "toWarehouse", label: "To WH" },
     ],
   },
   {
@@ -424,8 +424,8 @@ export default function AdminPage() {
                   {[
                     "Category",
                     "Stock movement",
-                    "From",
-                    "To",
+                    "From WH",
+                    "To WH",
                     "Document",
                     "Responsible",
                     "Accountable",

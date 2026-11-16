@@ -13,6 +13,7 @@ Replaces the shared Excel checklist so that every team works on one version and 
   3. **Captured in system** - the data capturer records how many were captured (due by the system reporting time, 15:00 by default).
 - Ticking a check with no number counts as zero documents. Entering a number ticks the check.
 - Lines whose physical responsible person is `N/A` only have the capture check.
+- **Documents not captured** = DC received count minus captured count. Nothing counts as not captured until the DC has confirmed the number received.
 - Today's sheet is editable by everyone. Previous days are locked; an admin (or everyone, when no admin code is set) can unlock a day to correct it.
 
 ## Pages
@@ -20,7 +21,7 @@ Replaces the shared Excel checklist so that every team works on one version and 
 | Page | Purpose |
 |---|---|
 | Daily checks (`/`) | The check sheet. Filter by responsible person, accountable person, category, to-do or exceptions; add comments per check. |
-| Exceptions (`/exceptions`) | Checks not done (by responsible and accountable person), count mismatches, documents not yet captured, plus the last 14 days. |
+| Exceptions dashboard (`/exceptions`) | Checks not done (by accountable person, then responsible person, then each missed check), count mismatches, documents not yet captured, a graph of all three per working day, and the last 10 working days. |
 | Admin (`/admin`) | Add, edit, duplicate or deactivate lines. People are picked from a list to keep names consistent. Edits apply from today onwards; history keeps the details it was checked against. |
 
 ## Data

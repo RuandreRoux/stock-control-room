@@ -98,7 +98,7 @@ export interface Analysis {
   mismatch: boolean;
   /** DC received minus responsible count (when both are in). */
   diff: number | null;
-  /** Documents the data capturer has to capture: DC received count, else the responsible count. */
+  /** Documents the data capturer has to capture: the DC received count (null until confirmed). */
   expected: number | null;
   capturedCount: number;
   /** expected - captured. Positive: still to capture. Negative: over-captured. */
@@ -128,7 +128,9 @@ export function analyse(check: DayCheck, nowMs: number): Analysis {
 
   const mismatch = physical !== null && received !== null && physical !== received;
   const diff = physical !== null && received !== null ? received - physical : null;
-  const expected = received ?? physical;
+  // The data capturer can only capture what was handed over, so nothing counts as
+  // "not captured" until the DC has confirmed how many documents were received.
+  const expected = received;
   const outstanding = expected === null ? null : expected - capturedCount;
 
   let status: RowStatus;

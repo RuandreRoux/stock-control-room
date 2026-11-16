@@ -9,6 +9,7 @@ import {
   users,
   type UserDoc,
 } from "./auth";
+import { alertNewSignUp } from "./push";
 import type { Role, UserAccount } from "./types";
 
 function toAccount(user: UserDoc): UserAccount {
@@ -179,6 +180,7 @@ export async function signUp(
     }
     throw err;
   }
+  await alertNewSignUp(db, name!, username);
   return { ok: true };
 }
 

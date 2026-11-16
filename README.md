@@ -33,6 +33,7 @@ MongoDB database `stock_control_room`:
 - `users` - accounts (username, name, role, password hash).
 - `sessions` - signed-in sessions, removed on sign-out and after 12 hours.
 - `throttle` - short-lived counters of failed sign-in attempts.
+- `push_subscriptions` - computers where an admin turned desktop alerts on.
 
 On first run against an empty database the app loads the 124 lines from the template (`src/lib/seed-lines.json`).
 
@@ -59,6 +60,15 @@ Every account after the first is created in the app. To create the very first ad
 ```bash
 node scripts/create-admin.mjs <username> "<Full name>" "<temporary password>"
 ```
+
+## Desktop alerts for admins
+
+Admins can turn on desktop alerts on Admin > Users ("Turn on alerts"), once per computer. Chrome then shows a notification whenever someone signs up and is waiting for approval, even when the app is closed, as long as Chrome is running. Clicking it opens Admin > Users.
+
+- Uses standard Web Push. The signing keys are created on first use and stored in the `meta` collection, so there is nothing to configure on the host.
+- Alerts are only sent to the browser makers' push services (Google, Mozilla, Microsoft, Apple), are encrypted so only that browser can read them, and go only to active admins.
+- A computer whose alerts the push service reports as gone is removed automatically.
+- Sending an alert never delays a sign-up by more than about 5 seconds, and a failure never stops the sign-up.
 
 ## Configuration
 

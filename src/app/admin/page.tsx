@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, Copy, Pencil, Plus, Search, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UsersAdmin } from "@/components/UsersAdmin";
 import { api, useSessionUser } from "@/lib/client";
@@ -265,7 +266,8 @@ function LineDialog({
 export default function AdminPage() {
   const [lines, setLines] = useState<Line[] | null>(null);
   const user = useSessionUser();
-  const [view, setView] = useState<"lines" | "users">("lines");
+  const params = useSearchParams();
+  const [view, setView] = useState<"lines" | "users">(params.get("view") === "users" ? "users" : "lines");
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [search, setSearch] = useState("");

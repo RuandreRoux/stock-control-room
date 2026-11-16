@@ -1,6 +1,7 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { ObjectId, type Db } from "mongodb";
+import { passwordRules } from "./password-rules";
 import type { Role, SessionUser } from "./types";
 
 /**
@@ -79,31 +80,26 @@ export async function fakeVerify(): Promise<void> {
   await derive("not-a-real-password", Buffer.alloc(16));
 }
 
+// Passwords that meet the rules on paper but are among the first anyone would guess.
 const COMMON = new Set([
-  "password",
-  "password1",
-  "password123",
-  "12345678",
-  "123456789",
-  "1234567890",
-  "qwertyui",
-  "qwerty123",
-  "letmein123",
-  "welcome1",
-  "welcome123",
-  "agritech",
-  "technovation",
-  "stockcontrol",
+  "password1!",
+  "password123!",
+  "passw0rd123!",
+  "welcome123!",
+  "welcome2026!",
+  "qwerty12345!",
+  "agritech123!",
+  "technovation1!",
+  "stockcontrol1!",
 ]);
 
 /** Returns what is wrong with a new password, or null when it is acceptable. */
 export function passwordProblem(password: unknown, username: string): string | null {
   if (typeof password !== "string") return "Enter a password";
-  if (password.length < 10) return "Use at least 10 characters";
   if (password.length > 200) return "That password is too long";
-  const lower = password.toLowerCase();
-  if (COMMON.has(lower) || /^(.)\1+$/.test(password)) return "That password is too easy to guess";
-  if (username && lower.includes(username.toLowerCase())) return "The password must not contain the username";
+  const failed = passwordRules(password, username).find((rule) => !rule.ok);
+  if (failed) return `The password needs: ${failed.label.charAt(0).toLowerCase()}${failed.label.slice(1)}`;
+  if (COMMON.has(password.toLowerCase())) return "That password is too easy to guess";
   return null;
 }
 

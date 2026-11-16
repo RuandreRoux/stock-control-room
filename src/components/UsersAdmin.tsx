@@ -8,12 +8,17 @@ import type { Role, UserAccount } from "@/lib/types";
 
 type Editing = { mode: "new" } | { mode: "edit" | "reset"; account: UserAccount };
 
-/** A temporary password that is easy to read out: three random words-worth of letters and digits. */
+/**
+ * A random temporary password that is easy to read out and meets the password rules:
+ * an upper-case letter, lower-case letters, a number and a special character (the dashes).
+ */
 function temporaryPassword(): string {
-  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789"; // no look-alikes (0/o, 1/l/i)
+  const letters = "abcdefghjkmnpqrstuvwxyz"; // no look-alikes (o/0, l/1/i)
+  const digits = "23456789";
   const values = crypto.getRandomValues(new Uint32Array(12));
-  const chars = [...values].map((v) => alphabet[v % alphabet.length]);
-  return `${chars.slice(0, 4).join("")}-${chars.slice(4, 8).join("")}-${chars.slice(8).join("")}`;
+  const pick = (set: string, i: number) => set[values[i] % set.length];
+  const group = (from: number) => [0, 1, 2, 3].map((i) => pick(letters, from + i)).join("");
+  return `${pick(letters, 0).toUpperCase()}${group(0).slice(1)}-${group(4)}-${pick(digits, 8)}${pick(digits, 9)}${pick(letters, 10)}${pick(digits, 11)}`;
 }
 
 function UserDialog({
@@ -185,7 +190,7 @@ function UserDialog({
               </span>
               <span className="mt-1 block text-[12px] text-ink-600">
                 Write this down now and give it to the person. It is not shown again, and they must replace it at
-                first sign-in.
+                first sign-in. If you type your own, it must follow the password rules.
               </span>
             </label>
           )}

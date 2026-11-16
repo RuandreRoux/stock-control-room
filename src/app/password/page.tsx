@@ -4,7 +4,9 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandBackdrop, Logo } from "@/components/Brand";
 import { PasswordField } from "@/components/PasswordField";
+import { Check, Circle } from "lucide-react";
 import { api } from "@/lib/client";
+import { passwordRules } from "@/lib/password-rules";
 import type { SessionUser } from "@/lib/types";
 
 export default function PasswordPage() {
@@ -27,6 +29,8 @@ export default function PasswordPage() {
   }, []);
 
   const mismatch = again.length > 0 && next !== again ? "The two new passwords do not match" : null;
+  const rules = passwordRules(next, user?.username ?? "");
+  const rulesMet = rules.every((rule) => rule.ok);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,13 +70,19 @@ export default function PasswordPage() {
             autoComplete="current-password"
             autoFocus
           />
-          <PasswordField
-            label="New password"
-            value={next}
-            onChange={setNext}
-            autoComplete="new-password"
-            hint="At least 10 characters. A short phrase is easy to remember and hard to guess."
-          />
+          <PasswordField label="New password" value={next} onChange={setNext} autoComplete="new-password" />
+          <ul className="grid gap-x-3 gap-y-1 rounded-lg bg-ink-50 p-3 text-[12px] sm:grid-cols-2" aria-label="Password rules">
+            {rules.map((rule) => (
+              <li key={rule.label} className={`flex items-start gap-1.5 ${rule.ok ? "text-ink-800" : "text-ink-600"}`}>
+                {rule.ok ? (
+                  <Check size={14} strokeWidth={2.25} className="mt-0.5 flex-none text-brand" aria-label="Met" />
+                ) : (
+                  <Circle size={14} strokeWidth={1.75} className="mt-0.5 flex-none text-ink-400" aria-label="Not yet met" />
+                )}
+                <span>{rule.label}</span>
+              </li>
+            ))}
+          </ul>
           <PasswordField label="New password again" value={again} onChange={setAgain} autoComplete="new-password" error={mismatch} />
           {error && (
             <p role="alert" className="text-[13px] font-semibold text-danger">
@@ -85,7 +95,7 @@ export default function PasswordPage() {
                 Cancel
               </a>
             )}
-            <button type="submit" className="btn btn-primary flex-1" disabled={busy || !user || !current || !next || next !== again}>
+            <button type="submit" className="btn btn-primary flex-1" disabled={busy || !user || !current || !rulesMet || next !== again}>
               {busy ? "Saving..." : "Save password"}
             </button>
           </div>

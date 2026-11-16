@@ -95,7 +95,7 @@ export default function LoginPage() {
               {busy ? "Signing in..." : "Sign in"}
             </button>
           </form>
-          <p className="mt-4 text-[12px] text-ink-600">Forgotten your password? Ask an admin to reset it.</p>
+          <p className="mt-4 text-[12px] text-ink-600">Please contact Ruandre to reset your password if needed.</p>
         </div>
       </div>
     </div>

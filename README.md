@@ -41,7 +41,7 @@ On first run against an empty database the app loads the 124 lines from the temp
 - Everyone signs in with their own username and password. There are no shared codes.
 - **Roles:** a *user* can do the daily checks and see the dashboard. An *admin* can also edit lines, manage users and correct previous days.
 - **Accounts** are created on the Admin page (Users tab). A new user gets a temporary password and must choose their own at first sign-in. Admins can reset a password or deactivate an account; both sign that person out at once.
-- **Passwords** are stored only as salted scrypt hashes. New passwords need at least 10 characters.
+- **Passwords** are stored only as salted scrypt hashes. A new password needs at least 10 characters with an upper-case letter, a lower-case letter, a number and a special character, and must not contain the username.
 - **Sessions:** the cookie ends when the browser closes; on the server a session lasts 12 hours at most. Signing out deletes the session on the server, so a copied cookie stops working. Only a hash of the session token is stored.
 - **Guessing:** five wrong passwords for a username lock sign-in for that username for 15 minutes.
 - Each check records the signed-in person's name; the browser cannot supply a different one.

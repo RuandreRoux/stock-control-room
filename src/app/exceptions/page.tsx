@@ -260,18 +260,43 @@ export default function ExceptionsPage() {
             })}
           </div>
 
-          <section className="card min-w-0 px-4 py-4" aria-label="Trend per day">
-            <h2 className="font-display text-base font-bold text-ink-900">Exceptions per Day</h2>
-            <p className="mb-3 text-[12px] text-ink-600">
-              Last {trend.length} working {trend.length === 1 ? "day" : "days"}. Select a name above the graph to hide
-              that line and rescale the others; click a day to open its report.
-            </p>
-            {history === null ? (
-              <p className="py-10 text-center text-ink-600">Loading the graph...</p>
-            ) : (
-              <TrendChart days={trend} selected={date} today={today} onSelect={setDate} />
-            )}
-          </section>
+          {/* Two graphs: checks are counted in the hundreds, documents in ones and tens. */}
+          <div className="grid min-w-0 gap-3">
+            {(
+              [
+                {
+                  title: "Checks Not Done per Day",
+                  hint: "Tick boxes that were never ticked.",
+                  series: ["notDone"],
+                },
+                {
+                  title: "Count Mismatches and Documents Not Captured per Day",
+                  hint: "Select a name to hide that line and rescale the other.",
+                  series: ["mismatches", "outstandingDocs"],
+                },
+              ] as const
+            ).map((graph) => (
+              <section key={graph.title} className="card min-w-0 px-4 py-3" aria-label={graph.title}>
+                <h2 className="font-display text-base font-bold text-ink-900">{graph.title}</h2>
+                <p className="mb-2 text-[12px] text-ink-600">
+                  Last {trend.length} working {trend.length === 1 ? "day" : "days"}. {graph.hint} Click a day to open
+                  it.
+                </p>
+                {history === null ? (
+                  <p className="py-10 text-center text-ink-600">Loading the graph...</p>
+                ) : (
+                  <TrendChart
+                    days={trend}
+                    series={[...graph.series]}
+                    selected={date}
+                    today={today}
+                    height={graph.series.length > 1 ? 180 : 170}
+                    onSelect={setDate}
+                  />
+                )}
+              </section>
+            ))}
+          </div>
           </div>
 
           <section className="card mt-3 overflow-hidden" role="tabpanel">

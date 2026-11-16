@@ -16,7 +16,6 @@ export const SERIES: { key: SeriesKey; label: string; color: string }[] = [
   { key: "outstandingDocs", label: "Documents not captured", color: "#006838" },
 ];
 
-const HEIGHT = 300;
 const PAD = { top: 16, right: 20, bottom: 30, left: 44 };
 
 /** A rounded axis maximum and about four even steps up to it. */
@@ -32,22 +31,30 @@ function axis(max: number): { top: number; ticks: number[] } {
 }
 
 /**
- * The three exception counts per working day on one shared axis. Hover (or use the
- * arrow keys) to read a day; click a day to open its report. Legend items hide a line,
- * which rescales the graph so the smaller counts can be read.
+ * One or more exception counts per working day on a shared axis. Measures of very
+ * different size go on separate graphs, so a large count never flattens a small one.
+ * Hover (or use the arrow keys) to read a day; click a day to open its report. With
+ * more than one line, the legend items hide a line and the graph rescales.
  */
 export function TrendChart({
   days,
+  series,
   selected,
   today,
+  height = 200,
   onSelect,
 }: {
   /** Oldest first. */
   days: DaySummary[];
+  /** Which measures to plot. */
+  series: SeriesKey[];
   selected: string;
   today: string;
+  height?: number;
   onSelect: (date: string) => void;
 }) {
+  const HEIGHT = height;
+  const plotted = SERIES.filter((s) => series.includes(s.key));
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [hidden, setHidden] = useState<Set<SeriesKey>>(new Set());
@@ -62,7 +69,7 @@ export function TrendChart({
   }, []);
   useEffect(() => setActive(null), [days.length]);
 
-  const visible = SERIES.filter((s) => !hidden.has(s.key));
+  const visible = plotted.filter((s) => !hidden.has(s.key));
   const { top, ticks } = useMemo(
     () => axis(Math.max(0, ...days.flatMap((d) => visible.map((s) => d[s.key])))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,7 +95,7 @@ export function TrendChart({
     setHidden((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
-      else if (next.size < SERIES.length - 1) next.add(key); // always keep one line
+      else if (next.size < plotted.length - 1) next.add(key); // always keep one line
       return next;
     });
 
@@ -98,8 +105,13 @@ export function TrendChart({
 
   return (
     <div>
-      <div className="flex flex-wrap gap-x-2 gap-y-1" role="group" aria-label="Lines shown">
-        {SERIES.map((s) => {
+      {/* A single line needs no legend: the graph's heading already names it. */}
+      <div
+        className={plotted.length > 1 ? "mb-2 flex flex-wrap gap-x-2 gap-y-1" : "hidden"}
+        role="group"
+        aria-label="Lines shown"
+      >
+        {plotted.map((s) => {
           const on = !hidden.has(s.key);
           return (
             <button
@@ -125,11 +137,11 @@ export function TrendChart({
 
       <div
         ref={wrap}
-        className="relative mt-2 cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        className="relative cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-brand"
         style={{ height: HEIGHT }}
         tabIndex={0}
         role="img"
-        aria-label={`Exceptions per working day for the last ${days.length} working days. Use the arrow keys to read a day and Enter to open it. The same numbers are in the table below.`}
+        aria-label={`${plotted.map((s) => s.label).join(" and ")} per working day for the last ${days.length} working days. Use the arrow keys to read a day and Enter to open it. The same numbers are in the table below.`}
         onPointerMove={(e) => setActive(nearest(e.clientX))}
         onPointerLeave={() => setActive(null)}
         onBlur={() => setActive(null)}

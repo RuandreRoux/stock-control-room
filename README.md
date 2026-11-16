@@ -21,7 +21,7 @@ Replaces the shared Excel checklist so that every team works on one version and 
 | Page | Purpose |
 |---|---|
 | Daily checks (`/`) | The check sheet. Filter by responsible person, accountable person, category, to-do or exceptions; add comments per check. |
-| Exceptions dashboard (`/exceptions`) | Checks not done (by accountable person, then responsible person, then each missed check), count mismatches, documents not yet captured, a graph of all three per working day, and the last 10 working days. |
+| Exceptions dashboard (`/exceptions`) | Checks not done (by accountable person, then responsible person, then each missed check), count mismatches, documents not yet captured, two graphs per working day (checks not done; count mismatches and documents not captured), and the last 10 working days. |
 | Admin (`/admin`) | Add, edit, duplicate or deactivate lines. People are picked from a list to keep names consistent. Edits apply from today onwards; history keeps the details it was checked against. |
 
 ## Data

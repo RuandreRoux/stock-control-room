@@ -33,16 +33,21 @@ const th = "caps px-4 py-2 text-left font-semibold";
 const td = "px-4 py-2.5 align-top";
 const num = "px-4 py-2.5 align-top text-right tabular-nums";
 
-function Movement({ check }: { check: DayCheck }) {
+/** Stock movement, From and To as three separate cells. */
+function LineCells({ check, children }: { check: DayCheck; children?: React.ReactNode }) {
   return (
     <>
-      <p className="font-semibold text-ink-900">{check.line.stockMovement}</p>
-      <p className="text-[12px] text-ink-600">
-        {check.line.fromWarehouse || "N/A"} to {check.line.toWarehouse || "N/A"}
-      </p>
+      <td className={td}>
+        <p className="font-semibold text-ink-900">{check.line.stockMovement}</p>
+        {children}
+      </td>
+      <td className={td}>{check.line.fromWarehouse || "N/A"}</td>
+      <td className={td}>{check.line.toWarehouse || "N/A"}</td>
     </>
   );
 }
+
+const group = "caps border-l border-ink-200 px-4 pt-2 text-left font-semibold";
 
 function Empty({ children }: { children: React.ReactNode }) {
   return (
@@ -54,7 +59,7 @@ function Empty({ children }: { children: React.ReactNode }) {
 }
 
 export default function ExceptionsPage() {
-  const { date, today, setDate } = useCheckDate();
+  const { date, today, latest, setDate } = useCheckDate();
   const { data, error } = useDay(date, "");
   const [tab, setTab] = useState<Tab>("notDone");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -71,8 +76,8 @@ export default function ExceptionsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    api<{ days: DaySummary[] }>(`/api/summary?to=${today}&days=14`)
-      .then((r) => !cancelled && setRecent(r.days))
+    api<{ days: DaySummary[] }>(`/api/summary?to=${today}&days=28`)
+      .then((r) => !cancelled && setRecent(r.days.slice(0, 10)))
       .catch(() => !cancelled && setRecent([]));
     return () => {
       cancelled = true;
@@ -152,7 +157,7 @@ export default function ExceptionsPage() {
             What still needs attention for the day. Select a tile to see the lines behind the number.
           </p>
         </div>
-        <DateNav date={date} today={today} onChange={setDate} />
+        <DateNav date={date} today={today} latest={latest} onChange={setDate} />
       </div>
 
       {error && (
@@ -274,27 +279,46 @@ export default function ExceptionsPage() {
                                   </button>
                                 </td>
                               </tr>
-                              {isOpen &&
-                                group.items.map((item) => (
-                                  <tr key={`${item.check.lineId}-${item.step}`} className="border-t border-ink-100 bg-ink-50">
-                                    <td className={`${td} pl-8`} colSpan={3}>
-                                      <Movement check={item.check} />
-                                    </td>
-                                    <td className={`${td} text-right text-[12px] text-ink-600`} colSpan={3}>
-                                      {item.overdue ? (
-                                        <span className="inline-flex items-center gap-1 font-semibold text-ink-800">
-                                          <AlertCircle size={14} strokeWidth={1.75} className="text-danger" aria-hidden />
-                                          Overdue - was due {item.due}
-                                        </span>
-                                      ) : (
-                                        <span className="inline-flex items-center gap-1">
-                                          <Clock size={14} strokeWidth={1.75} className="text-ink-400" aria-hidden />
-                                          Due by {item.due}
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
+                              {isOpen && (
+                                <tr className="border-t border-ink-100 bg-ink-50">
+                                  <td colSpan={6} className="px-4 pb-3 pt-1">
+                                    <table className="w-full text-[13px]">
+                                      <thead>
+                                        <tr>
+                                          <th className="caps py-1.5 pl-4 pr-4 text-left font-semibold">Stock movement</th>
+                                          <th className="caps px-4 py-1.5 text-left font-semibold">From</th>
+                                          <th className="caps px-4 py-1.5 text-left font-semibold">To</th>
+                                          <th className="caps px-4 py-1.5 text-left font-semibold">Due</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {group.items.map((item) => (
+                                          <tr key={`${item.check.lineId}-${item.step}`} className="border-t border-ink-200/70">
+                                            <td className="py-1.5 pl-4 pr-4 font-semibold text-ink-900">
+                                              {item.check.line.stockMovement}
+                                            </td>
+                                            <td className="px-4 py-1.5">{item.check.line.fromWarehouse || "N/A"}</td>
+                                            <td className="px-4 py-1.5">{item.check.line.toWarehouse || "N/A"}</td>
+                                            <td className="whitespace-nowrap px-4 py-1.5">
+                                              {item.overdue ? (
+                                                <span className="inline-flex items-center gap-1 font-semibold text-ink-900">
+                                                  <AlertCircle size={14} strokeWidth={1.75} className="text-danger" aria-hidden />
+                                                  Overdue - was due {item.due}
+                                                </span>
+                                              ) : (
+                                                <span className="inline-flex items-center gap-1 text-ink-600">
+                                                  <Clock size={14} strokeWidth={1.75} className="text-ink-400" aria-hidden />
+                                                  Due by {item.due}
+                                                </span>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
+                              )}
                             </Fragment>
                           );
                         })}
@@ -317,43 +341,52 @@ export default function ExceptionsPage() {
                   <Empty>No mismatches between the responsible and DC counts.</Empty>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-[13px]">
+                    <table className="w-full min-w-[1100px] text-[13px]">
                       <thead className="bg-ink-50">
                         <tr>
+                          <th colSpan={3} />
+                          <th colSpan={3} className={group}>
+                            Physical count
+                          </th>
+                          <th colSpan={3} className={group}>
+                            DC received
+                          </th>
+                          <th />
+                        </tr>
+                        <tr>
                           <th className={th}>Stock movement</th>
-                          <th className={th}>Responsible</th>
+                          <th className={th}>From</th>
+                          <th className={th}>To</th>
+                          <th className={`${th} border-l border-ink-200`}>Responsible</th>
+                          <th className={th}>Accountable</th>
                           <th className={`${th} text-right`}>Completed</th>
-                          <th className={th}>Data capturer</th>
+                          <th className={`${th} border-l border-ink-200`}>Responsible</th>
+                          <th className={th}>Accountable</th>
                           <th className={`${th} text-right`}>Received</th>
-                          <th className={`${th} text-right`}>Difference</th>
+                          <th className={`${th} border-l border-ink-200 text-right`}>Difference</th>
                         </tr>
                       </thead>
                       <tbody>
                         {report.mismatches.map(({ check, physical, received, diff }) => (
                           <tr key={check.lineId} className="border-t border-ink-100">
-                            <td className={td}>
-                              <Movement check={check} />
+                            <LineCells check={check}>
                               {[check.physical.comment, check.received.comment].filter(Boolean).map((c, i) => (
-                                <p key={i} className="mt-1 text-[12px] italic text-ink-600">
+                                <p key={i} className="mt-1 text-[12px] font-normal italic text-ink-600">
                                   &ldquo;{c}&rdquo;
                                 </p>
                               ))}
+                            </LineCells>
+                            <td className={`${td} border-l border-ink-100 font-semibold text-ink-900`}>
+                              {check.line.responsiblePerson || "N/A"}
                             </td>
-                            <td className={td}>
-                              {check.line.responsiblePerson}
-                              <span className="block text-[12px] text-ink-600">
-                                Accountable: {check.line.physicalAccountablePerson || "N/A"}
-                              </span>
-                            </td>
+                            <td className={td}>{check.line.physicalAccountablePerson || "N/A"}</td>
                             <td className={num}>{physical}</td>
-                            <td className={td}>
-                              {check.line.systemResponsiblePerson}
-                              <span className="block text-[12px] text-ink-600">
-                                Accountable: {check.line.systemAccountablePerson || "N/A"}
-                              </span>
+                            <td className={`${td} border-l border-ink-100 font-semibold text-ink-900`}>
+                              {check.line.systemResponsiblePerson || "N/A"}
                             </td>
+                            <td className={td}>{check.line.systemAccountablePerson || "N/A"}</td>
                             <td className={num}>{received}</td>
-                            <td className={`${num} font-semibold text-ink-900`}>
+                            <td className={`${num} border-l border-ink-100 font-semibold text-ink-900`}>
                               {diff > 0 ? `+${diff}` : diff}
                             </td>
                           </tr>
@@ -378,12 +411,15 @@ export default function ExceptionsPage() {
                   <Empty>Every counted document has been captured.</Empty>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-[13px]">
+                    <table className="w-full min-w-[1100px] text-[13px]">
                       <thead className="bg-ink-50">
                         <tr>
                           <th className={th}>Stock movement</th>
+                          <th className={th}>From</th>
+                          <th className={th}>To</th>
                           <th className={th}>System document</th>
-                          <th className={th}>Data capturer</th>
+                          <th className={th}>Responsible</th>
+                          <th className={th}>Accountable</th>
                           <th className={`${th} text-right`}>To capture</th>
                           <th className={`${th} text-right`}>Captured</th>
                           <th className={`${th} text-right`}>Outstanding</th>
@@ -392,19 +428,18 @@ export default function ExceptionsPage() {
                       <tbody>
                         {report.outstanding.map(({ check, expected, captured, outstanding }) => (
                           <tr key={check.lineId} className="border-t border-ink-100">
-                            <td className={td}>
-                              <Movement check={check} />
+                            <LineCells check={check}>
                               {check.captured.comment && (
-                                <p className="mt-1 text-[12px] italic text-ink-600">&ldquo;{check.captured.comment}&rdquo;</p>
+                                <p className="mt-1 text-[12px] font-normal italic text-ink-600">
+                                  &ldquo;{check.captured.comment}&rdquo;
+                                </p>
                               )}
-                            </td>
+                            </LineCells>
                             <td className={td}>{check.line.systemDocument || "N/A"}</td>
-                            <td className={td}>
-                              {check.line.systemResponsiblePerson}
-                              <span className="block text-[12px] text-ink-600">
-                                Accountable: {check.line.systemAccountablePerson || "N/A"}
-                              </span>
+                            <td className={`${td} font-semibold text-ink-900`}>
+                              {check.line.systemResponsiblePerson || "N/A"}
                             </td>
+                            <td className={td}>{check.line.systemAccountablePerson || "N/A"}</td>
                             <td className={num}>{expected}</td>
                             <td className={num}>{captured}</td>
                             <td className={`${num} font-semibold text-ink-900`}>
@@ -424,7 +459,7 @@ export default function ExceptionsPage() {
 
       <section className="card mt-6 overflow-hidden">
         <header className="border-b border-ink-100 px-4 py-3">
-          <h2 className="font-display text-base font-bold text-ink-900">Last 14 Days</h2>
+          <h2 className="font-display text-base font-bold text-ink-900">Last 10 Working Days</h2>
           <p className="text-[12px] text-ink-600">Select a day to open its report.</p>
         </header>
         {recent === null ? (
@@ -447,7 +482,7 @@ export default function ExceptionsPage() {
                   <tr key={day.date} className={`border-t border-ink-100 ${day.date === date ? "bg-brand-50" : ""}`}>
                     <td className={td}>
                       <Link
-                        href={day.date === today ? "/exceptions" : `/exceptions?date=${day.date}`}
+                        href={day.date === latest ? "/exceptions" : `/exceptions?date=${day.date}`}
                         scroll={false}
                         className="font-semibold text-brand underline-offset-2 hover:text-sea hover:underline"
                       >

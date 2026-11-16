@@ -23,7 +23,18 @@ const BLANK: LineFields = {
   source: "",
 };
 
-const SECTIONS: { title: string; hint?: string; fields: { key: keyof LineFields; label: string; type?: "time" }[] }[] = [
+const PERSON_KEYS: (keyof LineFields)[] = [
+  "responsiblePerson",
+  "physicalAccountablePerson",
+  "systemResponsiblePerson",
+  "systemAccountablePerson",
+];
+
+const SECTIONS: {
+  title: string;
+  hint?: string;
+  fields: { key: keyof LineFields; label: string; type?: "time" | "person" }[];
+}[] = [
   {
     title: "Stock movement",
     fields: [
@@ -35,21 +46,21 @@ const SECTIONS: { title: string; hint?: string; fields: { key: keyof LineFields;
   },
   {
     title: "Physical stock",
-    hint: "Leave the responsible person as N/A when there is no physical document to count.",
+    hint: "Choose N/A as the responsible person when there is no physical document to count.",
     fields: [
       { key: "physicalDocument", label: "Document" },
-      { key: "responsiblePerson", label: "Responsible person" },
+      { key: "responsiblePerson", label: "Responsible person", type: "person" },
       { key: "physicalReportingTime", label: "Reporting time", type: "time" },
-      { key: "physicalAccountablePerson", label: "Accountable person" },
+      { key: "physicalAccountablePerson", label: "Accountable person", type: "person" },
     ],
   },
   {
     title: "System stock",
     fields: [
       { key: "systemDocument", label: "Document" },
-      { key: "systemResponsiblePerson", label: "Responsible person" },
+      { key: "systemResponsiblePerson", label: "Responsible person", type: "person" },
       { key: "systemReportingTime", label: "Reporting time", type: "time" },
-      { key: "systemAccountablePerson", label: "Accountable person" },
+      { key: "systemAccountablePerson", label: "Accountable person", type: "person" },
     ],
   },
   { title: "Reference", fields: [{ key: "source", label: "Source" }] },
@@ -59,6 +70,73 @@ type Editing = { id: string | null; fields: LineFields; active: boolean };
 
 function pick(line: Line): LineFields {
   return Object.fromEntries(LINE_FIELD_KEYS.map((k) => [k, line[k]])) as unknown as LineFields;
+}
+
+const NEW_PERSON = "__new__";
+
+/**
+ * People are picked from the existing names so that spelling stays consistent.
+ * A genuinely new person is added through "Add new person".
+ */
+function PersonField({
+  value,
+  people,
+  onChange,
+}: {
+  value: string;
+  people: string[];
+  onChange: (value: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const options = value && !people.includes(value) ? [...people, value] : people;
+
+  if (adding) {
+    return (
+      <span className="flex gap-2">
+        <input
+          type="text"
+          className="input"
+          maxLength={200}
+          autoFocus
+          placeholder="Name of the new person"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={() => {
+            setAdding(false);
+            if (!value.trim()) onChange("");
+          }}
+        >
+          List
+        </button>
+      </span>
+    );
+  }
+  return (
+    <select
+      className="input"
+      value={value}
+      onChange={(e) => {
+        if (e.target.value === NEW_PERSON) {
+          setAdding(true);
+          onChange("");
+        } else {
+          onChange(e.target.value);
+        }
+      }}
+    >
+      <option value="">Select a person</option>
+      {options.map((p) => (
+        <option key={p} value={p}>
+          {p}
+        </option>
+      ))}
+      <option value={NEW_PERSON}>Add new person...</option>
+    </select>
+  );
 }
 
 function LineDialog({
@@ -104,7 +182,7 @@ function LineDialog({
     <dialog
       ref={ref}
       onClose={onClose}
-      className="m-auto w-[min(720px,calc(100vw-32px))] rounded-xl bg-white p-0 shadow-modal backdrop:bg-ink-900/40"
+      className="m-auto w-[min(760px,calc(100vw-32px))] rounded-xl bg-white p-0 shadow-modal backdrop:bg-ink-900/40"
     >
       <form onSubmit={save}>
         <header className="flex items-center justify-between border-b border-ink-100 px-6 py-4">
@@ -122,15 +200,23 @@ function LineDialog({
                 {section.fields.map(({ key, label, type }) => (
                   <label key={key} className="block">
                     <span className="caps mb-1 block">{label}</span>
-                    <input
-                      type={type ?? "text"}
-                      className="input"
-                      maxLength={200}
-                      required={key === "category" || key === "stockMovement" || type === "time"}
-                      list={type ? undefined : `options-${key}`}
-                      value={fields[key]}
-                      onChange={(e) => setFields((prev) => ({ ...prev, [key]: e.target.value }))}
-                    />
+                    {type === "person" ? (
+                      <PersonField
+                        value={fields[key]}
+                        people={suggestions.people}
+                        onChange={(value) => setFields((prev) => ({ ...prev, [key]: value }))}
+                      />
+                    ) : (
+                      <input
+                        type={type ?? "text"}
+                        className="input"
+                        maxLength={200}
+                        required={key === "category" || key === "stockMovement" || type === "time"}
+                        list={type ? undefined : `options-${key}`}
+                        value={fields[key]}
+                        onChange={(e) => setFields((prev) => ({ ...prev, [key]: e.target.value }))}
+                      />
+                    )}
                     {!type && (
                       <datalist id={`options-${key}`}>
                         {(suggestions[key] ?? []).map((v) => (
@@ -214,14 +300,10 @@ export default function AdminPage() {
     for (const line of lines ?? []) {
       for (const key of LINE_FIELD_KEYS) if (line[key]) sets[key].add(line[key]);
     }
-    // People can be picked from either side of the sheet.
-    const people = new Set<string>();
-    for (const key of ["responsiblePerson", "physicalAccountablePerson", "systemResponsiblePerson", "systemAccountablePerson"]) {
-      sets[key].forEach((p) => people.add(p));
-    }
-    for (const key of ["responsiblePerson", "physicalAccountablePerson", "systemResponsiblePerson", "systemAccountablePerson"]) {
-      sets[key] = people;
-    }
+    // One shared list of people for all four person fields.
+    const people = new Set<string>(["N/A"]);
+    for (const key of PERSON_KEYS) sets[key].forEach((p) => people.add(p));
+    sets.people = people;
     return Object.fromEntries(Object.entries(sets).map(([k, v]) => [k, [...v].sort((a, b) => a.localeCompare(b))]));
   }, [lines]);
 
@@ -326,11 +408,39 @@ export default function AdminPage() {
           <p className="px-4 py-10 text-center text-ink-600">No lines match this selection.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[960px] text-[13px]">
+            <table className="w-full min-w-[1500px] text-[13px]">
               <thead className="bg-ink-50">
                 <tr>
-                  {["Category", "Stock movement", "Physical stock", "System stock", "Source", ""].map((h, i) => (
-                    <th key={i} className="caps px-4 py-2 text-left font-semibold">
+                  <th colSpan={4} />
+                  <th colSpan={4} className="caps border-l border-ink-200 px-3 pt-2 text-left font-semibold text-brand">
+                    Physical stock
+                  </th>
+                  <th colSpan={4} className="caps border-l border-ink-200 px-3 pt-2 text-left font-semibold text-brand">
+                    System stock
+                  </th>
+                  <th colSpan={2} className="border-l border-ink-200" />
+                </tr>
+                <tr>
+                  {[
+                    "Category",
+                    "Stock movement",
+                    "From",
+                    "To",
+                    "Document",
+                    "Responsible",
+                    "Accountable",
+                    "Time",
+                    "Document",
+                    "Responsible",
+                    "Accountable",
+                    "Time",
+                    "Source",
+                    "",
+                  ].map((h, i) => (
+                    <th
+                      key={i}
+                      className={`caps px-3 py-2 text-left font-semibold ${i === 4 || i === 8 || i === 12 ? "border-l border-ink-200" : ""}`}
+                    >
                       {h}
                     </th>
                   ))}
@@ -339,7 +449,7 @@ export default function AdminPage() {
               <tbody>
                 {visible.map((line) => (
                   <tr key={line.id} className={`border-t border-ink-100 align-top ${line.active ? "" : "bg-ink-50 text-ink-600"}`}>
-                    <td className="whitespace-nowrap px-4 py-2.5">
+                    <td className="whitespace-nowrap px-3 py-2.5">
                       {line.category}
                       {!line.active && (
                         <span className="mt-1 block w-fit rounded-full border border-ink-200 px-2 text-[11px] font-semibold">
@@ -347,27 +457,18 @@ export default function AdminPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5">
-                      <p className="font-semibold text-ink-900">{line.stockMovement}</p>
-                      <p className="text-[12px] text-ink-600">
-                        {line.fromWarehouse || "N/A"} to {line.toWarehouse || "N/A"}
-                      </p>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <p>{line.physicalDocument || "N/A"}</p>
-                      <p className="text-[12px] text-ink-600">
-                        {line.responsiblePerson || "N/A"} by {line.physicalReportingTime} - accountable{" "}
-                        {line.physicalAccountablePerson || "N/A"}
-                      </p>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <p>{line.systemDocument || "N/A"}</p>
-                      <p className="text-[12px] text-ink-600">
-                        {line.systemResponsiblePerson || "N/A"} by {line.systemReportingTime} - accountable{" "}
-                        {line.systemAccountablePerson || "N/A"}
-                      </p>
-                    </td>
-                    <td className="px-4 py-2.5 text-[12px] text-ink-600">{line.source}</td>
+                    <td className="px-3 py-2.5 font-semibold text-ink-900">{line.stockMovement}</td>
+                    <td className="px-3 py-2.5">{line.fromWarehouse || "N/A"}</td>
+                    <td className="px-3 py-2.5">{line.toWarehouse || "N/A"}</td>
+                    <td className="border-l border-ink-100 px-3 py-2.5">{line.physicalDocument || "N/A"}</td>
+                    <td className="px-3 py-2.5 font-semibold text-ink-900">{line.responsiblePerson || "N/A"}</td>
+                    <td className="px-3 py-2.5">{line.physicalAccountablePerson || "N/A"}</td>
+                    <td className="px-3 py-2.5 tabular-nums">{line.physicalReportingTime}</td>
+                    <td className="border-l border-ink-100 px-3 py-2.5">{line.systemDocument || "N/A"}</td>
+                    <td className="px-3 py-2.5 font-semibold text-ink-900">{line.systemResponsiblePerson || "N/A"}</td>
+                    <td className="px-3 py-2.5">{line.systemAccountablePerson || "N/A"}</td>
+                    <td className="px-3 py-2.5 tabular-nums">{line.systemReportingTime}</td>
+                    <td className="border-l border-ink-100 px-3 py-2.5 text-[12px] text-ink-600">{line.source}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">
                       <button
                         type="button"

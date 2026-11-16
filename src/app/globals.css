@@ -31,6 +31,9 @@
   --shadow-modal: 0 16px 48px rgba(15, 31, 22, 0.12);
 
   --ease-brand: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* The width from which a checklist line fits on a single row. */
+  --breakpoint-wide: 90rem;
 }
 
 html {

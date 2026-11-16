@@ -5,10 +5,11 @@ Replaces the shared Excel checklist so that every team works on one version and 
 
 ## How it works
 
-- A **check day** covers documents from 06:00 the previous day to 06:00 on the day (South African time).
+- A **check day** covers documents from 06:00 on the previous working day to 06:00 on the day (South African time). Monday therefore covers Friday 06:00 to Monday 06:00.
+- Checks run Monday to Friday. Weekends and South African public holidays have no sheet (see `src/lib/time.ts`; once-off declared holidays such as election days are not included).
 - Each line has three checks:
   1. **Physical count** - the responsible person counts the completed documents (due by the line's physical reporting time, 10:00 by default).
-  2. **DC received** - the data capturer confirms how many documents were handed over.
+  2. **DC received** - the data capturer confirms how many documents were handed over (also due by the physical reporting time).
   3. **Captured in system** - the data capturer records how many were captured (due by the system reporting time, 15:00 by default).
 - Ticking a check with no number counts as zero documents. Entering a number ticks the check.
 - Lines whose physical responsible person is `N/A` only have the capture check.
@@ -18,9 +19,9 @@ Replaces the shared Excel checklist so that every team works on one version and 
 
 | Page | Purpose |
 |---|---|
-| Daily checks (`/`) | The check sheet. Filter by person, category, to-do or exceptions; add comments per check. |
+| Daily checks (`/`) | The check sheet. Filter by responsible person, accountable person, category, to-do or exceptions; add comments per check. |
 | Exceptions (`/exceptions`) | Checks not done (by responsible and accountable person), count mismatches, documents not yet captured, plus the last 14 days. |
-| Admin (`/admin`) | Add, edit, duplicate or deactivate lines. Edits apply from today onwards; history keeps the details it was checked against. |
+| Admin (`/admin`) | Add, edit, duplicate or deactivate lines. People are picked from a list to keep names consistent. Edits apply from today onwards; history keeps the details it was checked against. |
 
 ## Data
 

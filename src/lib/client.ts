@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isValidDate, sastDate } from "./time";
+import { isValidDate, latestWorkingDay, sastDate } from "./time";
 import type { DayCheck, DayResponse, StepKey } from "./types";
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
@@ -21,42 +21,48 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-/** The selected check day lives in the URL (?date=YYYY-MM-DD) so links and reloads keep it. */
-export function useCheckDate(): { date: string; today: string; setDate: (d: string) => void } {
+/**
+ * The selected check day lives in the URL (?date=YYYY-MM-DD) so links and reloads keep it.
+ * Only working days have a sheet: `latest` is today, or the last working day when today is
+ * a weekend or public holiday.
+ */
+export function useCheckDate(): { date: string; today: string; latest: string; setDate: (d: string) => void } {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const today = sastDate();
+  const latest = latestWorkingDay(today);
   const raw = params.get("date");
-  const date = isValidDate(raw) && raw <= today ? raw : today;
+  const date = isValidDate(raw) && raw <= latest ? latestWorkingDay(raw) : latest;
   const setDate = useCallback(
     (d: string) => {
       if (!isValidDate(d)) return;
-      const clamped = d > today ? today : d;
-      router.replace(clamped === today ? pathname : `${pathname}?date=${clamped}`, { scroll: false });
+      const target = d > latest ? latest : latestWorkingDay(d);
+      router.replace(target === latest ? pathname : `${pathname}?date=${target}`, { scroll: false });
     },
-    [router, pathname, today],
+    [router, pathname, latest],
   );
-  return { date, today, setDate };
+  return { date, today, latest, setDate };
 }
 
-const PERSON_KEY = "scr.person";
-
-/** Remembers who is using this device so their lines are shown first time, every time. */
-export function usePerson(): [string, (p: string) => void] {
-  const [person, setPersonState] = useState("");
+/** A filter choice remembered on this device, so people see their own lines first time, every time. */
+export function useStored(key: string): [string, (value: string) => void] {
+  const [value, setValueState] = useState("");
   useEffect(() => {
     try {
-      setPersonState(window.localStorage.getItem(PERSON_KEY) || "");
+      setValueState(window.localStorage.getItem(key) || "");
     } catch {}
-  }, []);
-  const setPerson = useCallback((p: string) => {
-    setPersonState(p);
-    try {
-      window.localStorage.setItem(PERSON_KEY, p);
-    } catch {}
-  }, []);
-  return [person, setPerson];
+  }, [key]);
+  const setValue = useCallback(
+    (next: string) => {
+      setValueState(next);
+      try {
+        window.localStorage.setItem(key, next);
+      } catch {}
+    },
+    [key],
+  );
+  return [value, setValue];
 }
 
 export interface StepChange {

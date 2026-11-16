@@ -1,7 +1,7 @@
 import { ObjectId, type Db } from "mongodb";
 import seedLines from "./seed-lines.json";
 import { sortChecks } from "./logic";
-import { isValidTime, sastDate } from "./time";
+import { isValidTime, isWorkingDay, sastDate } from "./time";
 import { LINE_FIELD_KEYS, type DayCheck, type Line, type LineFields, type StepEntry } from "./types";
 
 interface LineDoc extends LineFields {
@@ -97,7 +97,8 @@ export async function listLines(db: Db): Promise<Line[]> {
  * the admin page never rewrite history.
  */
 export async function getDay(db: Db, date: string, today: string): Promise<DayCheck[]> {
-  if (date > today) return [];
+  // Checks only run on working days (Monday to Friday, excluding public holidays).
+  if (date > today || !isWorkingDay(date)) return [];
   const [lineDocs, existing] = await Promise.all([
     lines(db).find().toArray(),
     checks(db).find({ date }, { projection: { _id: 0 } }).toArray(),

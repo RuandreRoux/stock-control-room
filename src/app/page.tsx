@@ -2,10 +2,10 @@
 
 import { AlertCircle, ChevronDown, Lock, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { CheckRow, ROW_GRID } from "@/components/CheckRow";
+import { CheckRow, HEADER_GRID } from "@/components/CheckRow";
 import { DateNav } from "@/components/DateNav";
-import { useCheckDate, useDay, usePerson, type StepChange } from "@/lib/client";
-import { analyse, isNA, personMatches, STEP_LABEL, STEPS, stepInfo, type Analysis } from "@/lib/logic";
+import { useCheckDate, useDay, useStored, type StepChange } from "@/lib/client";
+import { analyse, lineMatches, namesOf, STEP_LABEL, STEPS, stepMatches, type Analysis } from "@/lib/logic";
 import type { DayCheck, StepKey } from "@/lib/types";
 
 type Show = "all" | "todo" | "exceptions";
@@ -17,9 +17,10 @@ const SHOW_OPTIONS: { value: Show; label: string }[] = [
 ];
 
 export default function DailyChecksPage() {
-  const { date, today, setDate } = useCheckDate();
-  const [person, setPerson] = usePerson();
-  const { data, error, saveState, saveError, update } = useDay(date, person);
+  const { date, today, latest, setDate } = useCheckDate();
+  const [responsible, setResponsible] = useStored("scr.responsible");
+  const [accountable, setAccountable] = useStored("scr.accountable");
+  const { data, error, saveState, saveError, update } = useDay(date, responsible || accountable);
 
   const [category, setCategory] = useState("");
   const [show, setShow] = useState<Show>("all");
@@ -38,7 +39,7 @@ export default function DailyChecksPage() {
   }, []);
   useEffect(() => {
     setTouched(new Set());
-  }, [date, person, category, show, search]);
+  }, [date, responsible, accountable, category, show, search]);
   useEffect(() => {
     setOpen(new Set());
     setUnlocked(false);
@@ -50,21 +51,26 @@ export default function DailyChecksPage() {
   const mayEdit = data?.canEdit ?? false;
   const canEdit = mayEdit && (!isPast || unlocked);
 
-  const people = useMemo(() => {
-    const names = new Set<string>();
+  // Two separate lists: who does the checks, and who answers for them.
+  const { responsibles, accountables } = useMemo(() => {
+    const r = new Set<string>();
+    const acc = new Set<string>();
     for (const c of checks ?? []) {
-      for (const name of [
-        c.line.responsiblePerson,
-        c.line.systemResponsiblePerson,
-        c.line.physicalAccountablePerson,
-        c.line.systemAccountablePerson,
-      ]) {
-        if (!isNA(name)) names.add(name);
-      }
+      namesOf(c.line.responsiblePerson).forEach((n) => r.add(n));
+      namesOf(c.line.systemResponsiblePerson).forEach((n) => r.add(n));
+      namesOf(c.line.physicalAccountablePerson).forEach((n) => acc.add(n));
+      namesOf(c.line.systemAccountablePerson).forEach((n) => acc.add(n));
     }
-    if (person) names.add(person);
-    return [...names].sort((x, y) => x.localeCompare(y));
-  }, [checks, person]);
+    const sorted = (set: Set<string>) => [...set].sort((x, y) => x.localeCompare(y));
+    return { responsibles: sorted(r), accountables: sorted(acc) };
+  }, [checks]);
+
+  // A remembered name that no longer exists (for example after a rename) is dropped.
+  useEffect(() => {
+    if (!checks || checks.length === 0) return;
+    if (responsible && !responsibles.includes(responsible)) setResponsible("");
+    if (accountable && !accountables.includes(accountable)) setAccountable("");
+  }, [checks, responsible, accountable, responsibles, accountables, setResponsible, setAccountable]);
 
   const categories = useMemo(() => [...new Set((checks ?? []).map((c) => c.line.category))], [checks]);
 
@@ -74,7 +80,10 @@ export default function DailyChecksPage() {
     return map;
   }, [checks, now]);
 
-  const mine = useMemo(() => (checks ?? []).filter((c) => personMatches(c.line, person)), [checks, person]);
+  const mine = useMemo(
+    () => (checks ?? []).filter((c) => lineMatches(c.line, responsible, accountable)),
+    [checks, responsible, accountable],
+  );
 
   const progress = useMemo(
     () =>
@@ -114,10 +123,7 @@ export default function DailyChecksPage() {
       const a = analysed.get(c.lineId)!;
       if (show === "todo") {
         // With a person selected, "to do" means the checks that person still owes.
-        return a.notDone.some((step) => {
-          const info = stepInfo(c.line, step);
-          return !person || info.responsible === person || info.accountable === person;
-        });
+        return a.notDone.some((step) => stepMatches(c.line, step, responsible, accountable));
       }
       return (
         a.status === "mismatch" ||
@@ -133,7 +139,7 @@ export default function DailyChecksPage() {
       else byCategory.set(c.line.category, [c]);
     }
     return [...byCategory.entries()];
-  }, [mine, category, search, show, touched, analysed, person]);
+  }, [mine, category, search, show, touched, analysed, responsible, accountable]);
 
   const visibleCount = groups.reduce((n, [, list]) => n + list.length, 0);
 
@@ -158,7 +164,7 @@ export default function DailyChecksPage() {
             documents.
           </p>
         </div>
-        <DateNav date={date} today={today} onChange={setDate} />
+        <DateNav date={date} today={today} latest={latest} onChange={setDate} />
       </div>
 
       {data && isPast && (
@@ -220,11 +226,11 @@ export default function DailyChecksPage() {
       </section>
 
       <section aria-label="Filters" className="mt-4 flex flex-wrap items-end gap-3">
-        <label className="w-[calc(50%-6px)] sm:w-52">
-          <span className="caps mb-1 block">Show lines for</span>
-          <select className="input" value={person} onChange={(e) => setPerson(e.target.value)}>
+        <label className="w-[calc(50%-6px)] sm:w-48">
+          <span className="caps mb-1 block">Responsible</span>
+          <select className="input" value={responsible} onChange={(e) => setResponsible(e.target.value)}>
             <option value="">Everyone</option>
-            {people.map((p) => (
+            {responsibles.map((p) => (
               <option key={p} value={p}>
                 {p}
               </option>
@@ -232,6 +238,17 @@ export default function DailyChecksPage() {
           </select>
         </label>
         <label className="w-[calc(50%-6px)] sm:w-48">
+          <span className="caps mb-1 block">Accountable</span>
+          <select className="input" value={accountable} onChange={(e) => setAccountable(e.target.value)}>
+            <option value="">Everyone</option>
+            {accountables.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="w-full sm:w-48">
           <span className="caps mb-1 block">Category</span>
           <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">All categories</option>
@@ -323,8 +340,10 @@ export default function DailyChecksPage() {
             </button>
             {!isCollapsed && (
               <>
-                <div className={`hidden border-t border-ink-100 px-4 py-2 ${ROW_GRID}`} aria-hidden>
+                <div className={`border-t border-ink-100 bg-ink-50 px-4 py-2 ${HEADER_GRID}`} aria-hidden>
                   <span className="caps">Stock movement</span>
+                  <span className="caps">From</span>
+                  <span className="caps">To</span>
                   {STEPS.map((s) => (
                     <span key={s} className="caps">
                       {STEP_LABEL[s]}
@@ -340,7 +359,8 @@ export default function DailyChecksPage() {
                       check={c}
                       a={analysed.get(c.lineId)!}
                       canEdit={canEdit}
-                      person={person}
+                      responsible={responsible}
+                      accountable={accountable}
                       open={open.has(c.lineId)}
                       onToggle={() => setOpen((prev) => toggle(prev, c.lineId))}
                       onChange={(step, change) => onChange(c.lineId, step, change)}

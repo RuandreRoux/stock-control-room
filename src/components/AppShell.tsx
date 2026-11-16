@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-ink-100 bg-white">
-        <div className="mx-auto flex h-14 max-w-[1200px] items-center gap-4 px-4">
+        <div className="mx-auto flex h-14 max-w-[1680px] items-center gap-4 px-4">
           <Link href={`/${query}`} className="flex items-center gap-2" aria-label="Stock Control Room">
             <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand text-white">
               <ClipboardCheck size={18} strokeWidth={1.75} aria-hidden />
@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
       </header>
-      <main className="mx-auto max-w-[1200px] px-4 pb-16 pt-6">{children}</main>
+      <main className="mx-auto max-w-[1680px] px-4 pb-16 pt-6">{children}</main>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { fail, json, withDb } from "@/lib/api";
 import { getChecksInRange } from "@/lib/data";
 import { summarise } from "@/lib/logic";
-import { addDays, isValidDate, sastDate } from "@/lib/time";
+import { addDays, isValidDate, isWorkingDay, sastDate } from "@/lib/time";
 import type { DayCheck } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +13,13 @@ export async function GET(req: Request) {
     const today = sastDate();
     const to = params.get("to") || today;
     if (!isValidDate(to)) return fail(400, "Invalid date");
-    const days = Math.min(Math.max(Number(params.get("days")) || 7, 1), 31);
+    // `days` counts calendar days back from `to`; non-working days are left out of the result.
+    const days = Math.min(Math.max(Number(params.get("days")) || 7, 1), 45);
     const from = addDays(to, -(days - 1));
 
     const byDate = new Map<string, DayCheck[]>();
     for (const check of await getChecksInRange(db, from, to)) {
+      if (!isWorkingDay(check.date)) continue;
       const list = byDate.get(check.date);
       if (list) list.push(check);
       else byDate.set(check.date, [check]);

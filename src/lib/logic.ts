@@ -38,22 +38,46 @@ export function stepInfo(line: LineFields, step: StepKey): StepInfo {
       document: line.physicalDocument,
     };
   }
+  // The data capturer confirms the hand-over by the physical reporting time, and has
+  // until the system reporting time to capture the documents.
   return {
     responsible: line.systemResponsiblePerson,
     accountable: line.systemAccountablePerson,
-    due: line.systemReportingTime,
+    due: step === "received" ? line.physicalReportingTime : line.systemReportingTime,
     document: step === "received" ? line.physicalDocument : line.systemDocument,
   };
 }
 
-export function personMatches(line: LineFields, person: string): boolean {
-  if (!person) return true;
-  return (
-    line.responsiblePerson === person ||
-    line.systemResponsiblePerson === person ||
-    line.physicalAccountablePerson === person ||
-    line.systemAccountablePerson === person
-  );
+/** The people in a person field. "Hans/Leon" means both Hans and Leon. */
+export function namesOf(value: string | null | undefined): string[] {
+  if (isNA(value)) return [];
+  return (value ?? "")
+    .split("/")
+    .map((name) => name.trim())
+    .filter((name) => !isNA(name));
+}
+
+const has = (value: string, person: string) => namesOf(value).includes(person);
+
+/** Whether a line belongs to the selected responsible and/or accountable person (on either side of the sheet). */
+export function lineMatches(line: LineFields, responsible: string, accountable: string): boolean {
+  if (responsible && !has(line.responsiblePerson, responsible) && !has(line.systemResponsiblePerson, responsible)) {
+    return false;
+  }
+  if (
+    accountable &&
+    !has(line.physicalAccountablePerson, accountable) &&
+    !has(line.systemAccountablePerson, accountable)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Whether one check on a line belongs to the selected responsible and/or accountable person. */
+export function stepMatches(line: LineFields, step: StepKey, responsible: string, accountable: string): boolean {
+  const info = stepInfo(line, step);
+  return (!responsible || has(info.responsible, responsible)) && (!accountable || has(info.accountable, accountable));
 }
 
 export type RowStatus = "todo" | "progress" | "balanced" | "mismatch" | "outstanding" | "over";

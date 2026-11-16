@@ -3,6 +3,7 @@
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, Clock } from "lucide-react";
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { Loading } from "@/components/Brand";
 import { DateNav } from "@/components/DateNav";
 import { SERIES, TrendChart } from "@/components/TrendChart";
 import { api, useCheckDate, useDay } from "@/lib/client";
@@ -209,7 +210,7 @@ export default function ExceptionsPage() {
           {error}
         </div>
       )}
-      {!data && !error && <p className="card mt-4 px-4 py-10 text-center text-ink-600">Loading the report...</p>}
+      {!data && !error && <Loading label="Loading the dashboard" />}
 
       {report && data && data.checks.length === 0 && (
         <p className="card mt-4 px-4 py-10 text-center text-ink-600">

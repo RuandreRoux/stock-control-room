@@ -3,6 +3,7 @@
 import { AlertCircle, ChevronDown, Lock, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CheckRow, HEADER_GRID } from "@/components/CheckRow";
+import { Loading } from "@/components/Brand";
 import { DateNav } from "@/components/DateNav";
 import { useCheckDate, useDay, useStored, type StepChange } from "@/lib/client";
 import { analyse, lineMatches, namesOf, STEP_LABEL, STEPS, stepMatches, type Analysis } from "@/lib/logic";
@@ -302,7 +303,7 @@ export default function DailyChecksPage() {
         </span>
       </div>
 
-      {!data && !error && <p className="card mt-2 px-4 py-10 text-center text-ink-600">Loading the check sheet...</p>}
+      {!data && !error && <Loading label="Loading the check sheet" />}
 
       {data && data.checks.length === 0 && (
         <p className="card mt-2 px-4 py-10 text-center text-ink-600">

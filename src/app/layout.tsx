@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AppShell } from "@/components/AppShell";
+import { Splash } from "@/components/Brand";
 // Fonts are bundled with the app, so the build does not depend on fetching them from Google.
 import "@fontsource-variable/montserrat/wght.css";
 import "@fontsource-variable/open-sans/wght.css";
@@ -16,7 +17,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en-ZA">
       <body className="antialiased">
-        <Suspense>
+        <Suspense fallback={<Splash />}>
           <AppShell>{children}</AppShell>
         </Suspense>
       </body>

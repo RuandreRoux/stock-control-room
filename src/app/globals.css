@@ -166,3 +166,52 @@ body {
     transform: none;
   }
 }
+
+/* Slow, quiet motion for the sign-in and loading screens. */
+@keyframes backdrop-drift {
+  from {
+    transform: scale(1.08) translateX(-1.5%);
+  }
+  to {
+    transform: scale(1) translateX(0);
+  }
+}
+.backdrop-drift {
+  animation: backdrop-drift 24s var(--ease-brand) both;
+}
+
+@keyframes loading-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+.loading-slide {
+  animation: loading-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 320ms var(--ease-brand) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop-drift,
+  .rise-in {
+    animation: none;
+  }
+  .loading-slide {
+    animation-duration: 2.8s;
+  }
+}

@@ -7,7 +7,7 @@ import { BrandBackdrop, Logo } from "@/components/Brand";
 const FACTS = [
   { value: "06:00", label: "Business day starts" },
   { value: "10:00", label: "Document counts due" },
-  { value: "15:00", label: "Capturing complete" },
+  { value: "Mon-Fri", label: "Working days" },
 ];
 
 export default function LoginPage() {
@@ -26,7 +26,7 @@ export default function LoginPage() {
             Stock Control Room
           </h1>
           <p className="mt-4 max-w-md text-[16px] leading-[1.6] text-white/90">
-            Every physical stock movement matched to its system document, every working day.
+            Every document counted by the stock team and confirmed by the data capturers, every working day.
           </p>
           <dl className="mt-8 hidden max-w-md grid-cols-3 sm:grid">
             {FACTS.map((fact, i) => (

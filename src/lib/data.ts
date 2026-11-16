@@ -117,13 +117,12 @@ export async function getDay(db: Db, date: string, today: string): Promise<DayCh
     line: snapshot(l),
     physical: emptyStep(),
     received: emptyStep(),
-    captured: emptyStep(),
   }));
   await checks(db).bulkWrite(
     fresh.map((c) => ({
       updateOne: {
         filter: { date: c.date, lineId: c.lineId },
-        update: { $setOnInsert: { line: c.line, physical: c.physical, received: c.received, captured: c.captured } },
+        update: { $setOnInsert: { line: c.line, physical: c.physical, received: c.received } },
         upsert: true,
       },
     })),
@@ -150,7 +149,7 @@ export async function updateStep(
   db: Db,
   date: string,
   lineId: string,
-  step: "physical" | "received" | "captured",
+  step: "physical" | "received",
   patch: StepPatch,
   by: string | null,
 ): Promise<DayCheck | null> {
@@ -244,7 +243,6 @@ export async function updateLine(
       lineId: id,
       "physical.checked": false,
       "received.checked": false,
-      "captured.checked": false,
     });
   }
   return toLine(doc);

@@ -9,15 +9,16 @@ import type { DayCheck, StepKey } from "@/lib/types";
 import { StatusPill } from "./StatusPill";
 
 /**
- * Phone: everything stacked. Tablet: movement / from / to on one line, the three checks
+ * Phone: everything stacked. Tablet: movement / from / to on one line, the two checks
  * side by side below. Wide screens: one row per line, one column per item.
  */
 const WIDE_COLS =
-  "wide:grid-cols-[minmax(0,1.15fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_repeat(3,minmax(0,1.5fr))_156px_36px] wide:gap-x-3";
+  "wide:grid-cols-[minmax(0,1.15fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_repeat(2,minmax(0,1.6fr))_156px_36px] wide:gap-x-3";
 export const ROW_GRID = `md:grid md:grid-cols-6 md:gap-x-3 md:gap-y-3 wide:items-start ${WIDE_COLS}`;
 /** Column headings, only shown when a line fits on one row. */
 export const HEADER_GRID = `hidden wide:grid ${WIDE_COLS}`;
 const CELL = "md:col-span-2 wide:col-span-1";
+const STEP_CELL = "md:col-span-3 wide:col-span-1";
 
 function CountInput({
   value,
@@ -177,7 +178,7 @@ export function CheckRow({
             return (
               <div
                 key={step}
-                className={`mt-3 rounded-lg border border-dashed border-ink-200 px-3 py-2 text-[12px] text-ink-400 md:mt-0 ${CELL}`}
+                className={`mt-3 rounded-lg border border-dashed border-ink-200 px-3 py-2 text-[12px] text-ink-400 md:mt-0 ${STEP_CELL}`}
               >
                 <span className="caps mr-2 wide:hidden">{STEP_LABEL[step]}</span>
                 Not applicable
@@ -185,8 +186,7 @@ export function CheckRow({
             );
           }
           const mine = stepMatches(line, step, responsible, accountable);
-          const mismatch = a.mismatch && step !== "captured";
-          const short = step === "captured" && state.done && a.outstanding !== null && a.outstanding !== 0;
+          const mismatch = a.mismatch;
 
           // Colour tells the state at a glance; the line of text under the count says it in words.
           let tone = "border-ink-200 bg-white";
@@ -202,16 +202,6 @@ export function CheckRow({
               <>
                 <AlertTriangle size={13} strokeWidth={1.75} className="flex-none text-danger" aria-hidden />
                 <span className="font-semibold text-ink-900">Counts differ</span>
-              </>
-            );
-          } else if (short) {
-            tone = "border-warn/60 bg-warn/10";
-            note = (
-              <>
-                <AlertTriangle size={13} strokeWidth={1.75} className="flex-none text-warn" aria-hidden />
-                <span className="font-semibold text-ink-900">
-                  {(a.outstanding ?? 0) > 0 ? `${a.outstanding} still to capture` : `${-(a.outstanding ?? 0)} too many`}
-                </span>
               </>
             );
           } else if (state.done) {
@@ -238,11 +228,14 @@ export function CheckRow({
           return (
             <div
               key={step}
-              className={`mt-3 min-w-0 rounded-lg border px-3 py-2 md:mt-0 ${CELL} ${tone} ${mine ? "" : "opacity-55"}`}
+              className={`mt-3 min-w-0 rounded-lg border px-3 py-2 md:mt-0 ${STEP_CELL} ${tone} ${mine ? "" : "opacity-55"}`}
             >
               <p className="caps mb-1 wide:hidden">{STEP_LABEL[step]}</p>
               <p className="mb-1.5 line-clamp-2 text-[12px] font-semibold leading-snug text-ink-800" title={info.document}>
-                {step === "received" ? "Documents handed over" : info.document || "No document"}
+                {step === "received" ? "Documents received" : info.document || "No document"}
+                {step === "received" && !isNA(line.systemDocument) && (
+                  <span className="font-normal text-ink-600"> - for {line.systemDocument}</span>
+                )}
               </p>
               <div className="flex items-center gap-2">
                 <input
@@ -307,7 +300,7 @@ export function CheckRow({
               </>
             )}
           </p>
-          <div className="mt-2 grid gap-3 md:grid-cols-3">
+          <div className="mt-2 grid gap-3 md:grid-cols-2">
             {STEPS.filter((step) => a.steps[step].applicable).map((step) => {
               const entry = check[step];
               return (

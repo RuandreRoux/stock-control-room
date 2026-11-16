@@ -33,7 +33,7 @@
   --ease-brand: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* The width from which a checklist line fits on a single row. */
-  --breakpoint-wide: 90rem;
+  --breakpoint-wide: 80rem;
 }
 
 html {

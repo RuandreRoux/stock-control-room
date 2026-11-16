@@ -5,13 +5,13 @@ import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Loading } from "@/components/Brand";
 import { DateNav } from "@/components/DateNav";
-import { SERIES, TrendChart } from "@/components/TrendChart";
+import { SERIES, TrendChart, type SeriesKey } from "@/components/TrendChart";
 import { api, useCheckDate, useDay } from "@/lib/client";
 import { analyse, STEP_LABEL, stepInfo, summarise, type DaySummary } from "@/lib/logic";
 import { formatDay } from "@/lib/time";
 import type { DayCheck, StepKey } from "@/lib/types";
 
-type Tab = "notDone" | "mismatch" | "outstanding";
+type Tab = "notDone" | "mismatch";
 
 interface NotDoneItem {
   check: DayCheck;
@@ -115,7 +115,6 @@ export default function ExceptionsPage() {
     const summary = summarise(date, checks, now);
     const groups = new Map<string, Map<string, ResponsibleGroup>>();
     const mismatches: { check: DayCheck; physical: number; received: number; diff: number }[] = [];
-    const outstanding: { check: DayCheck; expected: number; captured: number; outstanding: number }[] = [];
 
     for (const check of checks) {
       const a = analyse(check, now);
@@ -145,9 +144,6 @@ export default function ExceptionsPage() {
           diff: a.diff ?? 0,
         });
       }
-      if (a.outstanding !== null && a.outstanding !== 0 && (a.outstanding > 0 || a.steps.captured.done)) {
-        outstanding.push({ check, expected: a.expected ?? 0, captured: a.capturedCount, outstanding: a.outstanding });
-      }
     }
     const notDone: AccountableGroup[] = [...groups.entries()]
       .map(([accountable, byResponsible]) => {
@@ -162,35 +158,36 @@ export default function ExceptionsPage() {
         };
       })
       .sort((x, y) => y.total - x.total || x.accountable.localeCompare(y.accountable));
-    outstanding.sort((x, y) => y.outstanding - x.outstanding);
-    return { summary, notDone, mismatches, outstanding };
+    return { summary, notDone, mismatches };
   }, [checks, date, now]);
 
   const recent = history?.slice(0, 10) ?? null;
   const trend = useMemo(() => (history ?? []).slice(0, 20).reverse(), [history]);
 
-  const tiles: { tab: Tab; label: string; value: number; detail: string }[] = report
-    ? [
-        {
-          tab: "notDone",
-          label: "Checks not done",
-          value: report.summary.notDone,
-          detail: `of ${report.summary.totalChecks} checks - ${report.summary.overdue} overdue`,
-        },
-        {
-          tab: "mismatch",
-          label: "Count mismatches",
-          value: report.summary.mismatches,
-          detail: "lines where the responsible and DC counts differ",
-        },
-        {
-          tab: "outstanding",
-          label: "Documents not yet captured",
-          value: report.summary.outstandingDocs,
-          detail: `documents received by the DC, across ${report.summary.outstandingLines} ${report.summary.outstandingLines === 1 ? "line" : "lines"}`,
-        },
-      ]
-    : [];
+  // Each measure has a tile for the selected day and a graph of the recent working days.
+  const tiles: { tab: Tab; series: SeriesKey; label: string; value: number; detail: string; graph: string; hint: string }[] =
+    report
+      ? [
+          {
+            tab: "notDone",
+            series: "notDone",
+            label: "Checks not done",
+            value: report.summary.notDone,
+            detail: `of ${report.summary.totalChecks} checks - ${report.summary.overdue} overdue`,
+            graph: "Checks Not Done per Day",
+            hint: "Tick boxes that were never ticked.",
+          },
+          {
+            tab: "mismatch",
+            series: "mismatches",
+            label: "Count mismatches",
+            value: report.summary.mismatches,
+            detail: "lines where the responsible and DC counts differ",
+            graph: "Count Mismatches per Day",
+            hint: "Lines where the data capturer received a different number of documents.",
+          },
+        ]
+      : [];
 
   return (
     <div>
@@ -198,7 +195,7 @@ export default function ExceptionsPage() {
         <div>
           <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Exceptions Dashboard</h1>
           <p className="mt-1 max-w-xl text-[13px] text-ink-600">
-            What still needs attention for the day. Select a tile to see the lines behind the number.
+            What still needs attention for the day, and how it compares with recent days. Select a tile to see the lines behind the number.
           </p>
         </div>
         <DateNav date={date} today={today} latest={latest} onChange={setDate} />
@@ -221,86 +218,66 @@ export default function ExceptionsPage() {
       {report && data && data.checks.length > 0 && (
         <>
           <div className="mt-4 grid gap-3 xl:grid-cols-[340px_minmax(0,1fr)]">
-          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1" role="tablist" aria-label="Exceptions">
             {tiles.map((tile) => {
               const selected = tab === tile.tab;
               const clear = tile.value === 0;
+              const color = SERIES.find((x) => x.key === tile.series)?.color;
               return (
-                <button
-                  key={tile.tab}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  onClick={() => setTab(tile.tab)}
-                  className={`card px-4 py-4 text-left transition-[border-color,box-shadow] duration-200 hover:shadow-lift ${
-                    selected ? "border-brand shadow-[inset_0_-3px_0_var(--color-lime)]" : ""
-                  }`}
-                >
-                  <p className="caps flex items-center gap-2">
-                    <span
-                      className="h-[3px] w-4 flex-none rounded-full"
-                      style={{ background: SERIES[tiles.indexOf(tile)].color }}
-                      aria-hidden
-                    />
-                    {tile.label}
-                  </p>
-                  <p className="mt-1 font-display text-[34px] font-bold leading-tight text-ink-900 tabular-nums">
-                    {tile.value}
-                  </p>
-                  <p className="text-[12px] text-ink-600">{tile.detail}</p>
-                  <p className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-ink-800">
-                    {clear ? (
-                      <CheckCircle2 size={14} strokeWidth={1.75} className="text-brand" aria-hidden />
+                <Fragment key={tile.tab}>
+                  <button
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setTab(tile.tab)}
+                    className={`card flex flex-col justify-center px-4 py-4 text-left transition-[border-color,box-shadow] duration-200 hover:shadow-lift ${
+                      selected ? "border-brand shadow-[inset_0_-3px_0_var(--color-lime)]" : ""
+                    }`}
+                  >
+                    <p className="caps flex items-center gap-2">
+                      <span className="h-[3px] w-4 flex-none rounded-full" style={{ background: color }} aria-hidden />
+                      {tile.label}
+                    </p>
+                    <p className="mt-1 font-display text-[34px] font-bold leading-tight text-ink-900 tabular-nums">
+                      {tile.value}
+                    </p>
+                    <p className="text-[12px] text-ink-600">{tile.detail}</p>
+                    <p className="mt-2 flex items-center gap-1 text-[12px] font-semibold text-ink-800">
+                      {clear ? (
+                        <CheckCircle2 size={14} strokeWidth={1.75} className="text-brand" aria-hidden />
+                      ) : (
+                        <AlertTriangle size={14} strokeWidth={1.75} className="text-danger" aria-hidden />
+                      )}
+                      {clear ? "All clear" : "Needs attention"}
+                    </p>
+                    <p className="mt-2 text-[12px] text-ink-600">
+                      {selected ? "Lines shown below" : "Select to see the lines"}
+                    </p>
+                  </button>
+
+                  <section className="card min-w-0 px-4 py-3" aria-label={tile.graph}>
+                    <h2 className="font-display text-base font-bold text-ink-900">{tile.graph}</h2>
+                    <p className="mb-2 text-[12px] text-ink-600">
+                      Last {trend.length} working {trend.length === 1 ? "day" : "days"}. {tile.hint} Click a day to
+                      open it.
+                    </p>
+                    {history === null ? (
+                      <p className="py-10 text-center text-ink-600">Loading the graph...</p>
                     ) : (
-                      <AlertTriangle size={14} strokeWidth={1.75} className="text-danger" aria-hidden />
+                      <TrendChart
+                        days={trend}
+                        series={[tile.series]}
+                        selected={date}
+                        today={today}
+                        height={170}
+                        onSelect={setDate}
+                      />
                     )}
-                    {clear ? "All clear" : "Needs attention"}
-                  </p>
-                </button>
+                  </section>
+                </Fragment>
               );
             })}
           </div>
 
-          {/* Two graphs: checks are counted in the hundreds, documents in ones and tens. */}
-          <div className="grid min-w-0 gap-3">
-            {(
-              [
-                {
-                  title: "Checks Not Done per Day",
-                  hint: "Tick boxes that were never ticked.",
-                  series: ["notDone"],
-                },
-                {
-                  title: "Count Mismatches and Documents Not Captured per Day",
-                  hint: "Select a name to hide that line and rescale the other.",
-                  series: ["mismatches", "outstandingDocs"],
-                },
-              ] as const
-            ).map((graph) => (
-              <section key={graph.title} className="card min-w-0 px-4 py-3" aria-label={graph.title}>
-                <h2 className="font-display text-base font-bold text-ink-900">{graph.title}</h2>
-                <p className="mb-2 text-[12px] text-ink-600">
-                  Last {trend.length} working {trend.length === 1 ? "day" : "days"}. {graph.hint} Click a day to open
-                  it.
-                </p>
-                {history === null ? (
-                  <p className="py-10 text-center text-ink-600">Loading the graph...</p>
-                ) : (
-                  <TrendChart
-                    days={trend}
-                    series={[...graph.series]}
-                    selected={date}
-                    today={today}
-                    height={graph.series.length > 1 ? 180 : 170}
-                    onSelect={setDate}
-                  />
-                )}
-              </section>
-            ))}
-          </div>
-          </div>
-
-          <section className="card mt-3 overflow-hidden" role="tabpanel">
+          <section className="card mt-3 overflow-hidden" aria-label="Lines behind the selected tile">
             {tab === "notDone" && (
               <>
                 <header className="border-b border-ink-100 px-4 py-3">
@@ -518,61 +495,6 @@ export default function ExceptionsPage() {
               </>
             )}
 
-            {tab === "outstanding" && (
-              <>
-                <header className="border-b border-ink-100 px-4 py-3">
-                  <h2 className="font-display text-base font-bold text-ink-900">Documents not yet captured</h2>
-                  <p className="text-[12px] text-ink-600">
-                    Documents the data capturer has confirmed receiving that are not yet captured in the system
-                    (DC received count minus captured count).
-                  </p>
-                </header>
-                {report.outstanding.length === 0 ? (
-                  <Empty>Every counted document has been captured.</Empty>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1100px] text-[13px]">
-                      <thead className="bg-ink-50">
-                        <tr>
-                          <th className={th}>Stock movement</th>
-                          <th className={th}>From WH</th>
-                          <th className={th}>To WH</th>
-                          <th className={th}>System document</th>
-                          <th className={th}>Responsible</th>
-                          <th className={th}>Accountable</th>
-                          <th className={`${th} text-right`}>DC received</th>
-                          <th className={`${th} text-right`}>Captured</th>
-                          <th className={`${th} text-right`}>Outstanding</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {report.outstanding.map(({ check, expected, captured, outstanding }) => (
-                          <tr key={check.lineId} className="border-t border-ink-100">
-                            <LineCells check={check}>
-                              {check.captured.comment && (
-                                <p className="mt-1 text-[12px] font-normal italic text-ink-600">
-                                  &ldquo;{check.captured.comment}&rdquo;
-                                </p>
-                              )}
-                            </LineCells>
-                            <td className={td}>{check.line.systemDocument || "N/A"}</td>
-                            <td className={`${td} font-semibold text-ink-900`}>
-                              {check.line.systemResponsiblePerson || "N/A"}
-                            </td>
-                            <td className={td}>{check.line.systemAccountablePerson || "N/A"}</td>
-                            <td className={num}>{expected}</td>
-                            <td className={num}>{captured}</td>
-                            <td className={`${num} font-semibold text-ink-900`}>
-                              {outstanding > 0 ? outstanding : `Over by ${Math.abs(outstanding)}`}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </>
-            )}
           </section>
         </>
       )}
@@ -594,7 +516,6 @@ export default function ExceptionsPage() {
                   <th className={th}>Day</th>
                   <th className={`${th} text-right`}>Checks not done</th>
                   <th className={`${th} text-right`}>Count mismatches</th>
-                  <th className={`${th} text-right`}>Documents not captured</th>
                 </tr>
               </thead>
               <tbody>
@@ -614,7 +535,6 @@ export default function ExceptionsPage() {
                       {day.notDone} <span className="text-ink-400">of {day.totalChecks}</span>
                     </td>
                     <td className={num}>{day.mismatches}</td>
-                    <td className={num}>{day.outstandingDocs}</td>
                   </tr>
                 ))}
               </tbody>

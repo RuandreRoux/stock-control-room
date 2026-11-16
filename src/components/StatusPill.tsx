@@ -1,4 +1,4 @@
-import { AlertTriangle, CheckCircle2, Circle, CircleDashed, Clock } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle, CircleDashed } from "lucide-react";
 import type { Analysis } from "@/lib/logic";
 
 /** One plain-language status per line. Colour is always paired with an icon and a label. */
@@ -11,21 +11,13 @@ export function StatusPill({ a }: { a: Analysis }) {
     icon = <AlertTriangle size={14} strokeWidth={1.75} className="text-danger" aria-hidden />;
     label = "Count mismatch";
     tone = "bg-danger/10 border-danger/30";
-  } else if (a.status === "outstanding") {
-    icon = <Clock size={14} strokeWidth={1.75} className="text-warn" aria-hidden />;
-    label = `${a.outstanding} not captured`;
-    tone = "bg-warn/10 border-warn/40";
-  } else if (a.status === "over") {
-    icon = <AlertTriangle size={14} strokeWidth={1.75} className="text-warn" aria-hidden />;
-    label = `Over-captured by ${Math.abs(a.outstanding ?? 0)}`;
-    tone = "bg-warn/10 border-warn/40";
   } else if (a.status === "balanced") {
     icon = <CheckCircle2 size={14} strokeWidth={1.75} className="text-brand" aria-hidden />;
     label = "Balanced";
     tone = "bg-brand-50 border-brand-100";
   } else if (a.status === "progress") {
     icon = <CircleDashed size={14} strokeWidth={1.75} className="text-sea" aria-hidden />;
-    label = a.outstanding !== null && a.outstanding > 0 ? `${a.outstanding} to capture` : "In progress";
+    label = "In progress";
     tone = "bg-sea-100/60 border-sea-100";
   }
 

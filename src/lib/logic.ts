@@ -1,12 +1,15 @@
 import { deadlineMs } from "./time";
 import type { DayCheck, LineFields, StepKey } from "./types";
 
-export const STEPS: StepKey[] = ["physical", "received", "captured"];
+/**
+ * Two checks per line: the responsible person counts the completed documents, and the
+ * data capturer confirms how many were received. Capturing in the system is not tracked.
+ */
+export const STEPS: StepKey[] = ["physical", "received"];
 
 export const STEP_LABEL: Record<StepKey, string> = {
   physical: "Physical count",
   received: "DC received",
-  captured: "Captured in system",
 };
 
 export function isNA(value: string | null | undefined): boolean {
@@ -16,10 +19,10 @@ export function isNA(value: string | null | undefined): boolean {
 
 /**
  * Lines with no physical responsible person (for example system-only temporary
- * adjustments) have nothing to count or hand over: only the capture check applies.
+ * adjustments) have nobody to count the documents: only the DC received check applies.
  */
 export function applicableSteps(line: LineFields): StepKey[] {
-  return isNA(line.responsiblePerson) ? ["captured"] : STEPS;
+  return isNA(line.responsiblePerson) ? ["received"] : STEPS;
 }
 
 export interface StepInfo {
@@ -38,13 +41,12 @@ export function stepInfo(line: LineFields, step: StepKey): StepInfo {
       document: line.physicalDocument,
     };
   }
-  // The data capturer confirms the hand-over by the physical reporting time, and has
-  // until the system reporting time to capture the documents.
+  // The data capturer confirms the hand-over by the physical reporting time.
   return {
     responsible: line.systemResponsiblePerson,
     accountable: line.systemAccountablePerson,
-    due: step === "received" ? line.physicalReportingTime : line.systemReportingTime,
-    document: step === "received" ? line.physicalDocument : line.systemDocument,
+    due: line.physicalReportingTime,
+    document: line.physicalDocument,
   };
 }
 
@@ -80,7 +82,7 @@ export function stepMatches(line: LineFields, step: StepKey, responsible: string
   return (!responsible || has(info.responsible, responsible)) && (!accountable || has(info.accountable, accountable));
 }
 
-export type RowStatus = "todo" | "progress" | "balanced" | "mismatch" | "outstanding" | "over";
+export type RowStatus = "todo" | "progress" | "balanced" | "mismatch";
 
 export interface StepState {
   applicable: boolean;
@@ -98,11 +100,6 @@ export interface Analysis {
   mismatch: boolean;
   /** DC received minus responsible count (when both are in). */
   diff: number | null;
-  /** Documents the data capturer has to capture: the DC received count (null until confirmed). */
-  expected: number | null;
-  capturedCount: number;
-  /** expected - captured. Positive: still to capture. Negative: over-captured. */
-  outstanding: number | null;
   status: RowStatus;
 }
 
@@ -124,24 +121,17 @@ export function analyse(check: DayCheck, nowMs: number): Analysis {
 
   const physical = steps.physical.done ? check.physical.count ?? 0 : null;
   const received = steps.received.done ? check.received.count ?? 0 : null;
-  const capturedCount = steps.captured.done ? check.captured.count ?? 0 : 0;
 
   const mismatch = physical !== null && received !== null && physical !== received;
   const diff = physical !== null && received !== null ? received - physical : null;
-  // The data capturer can only capture what was handed over, so nothing counts as
-  // "not captured" until the DC has confirmed how many documents were received.
-  const expected = received;
-  const outstanding = expected === null ? null : expected - capturedCount;
 
   let status: RowStatus;
   if (mismatch) status = "mismatch";
-  else if (steps.captured.done && outstanding !== null && outstanding > 0) status = "outstanding";
-  else if (steps.captured.done && outstanding !== null && outstanding < 0) status = "over";
   else if (notDone.length === 0) status = "balanced";
   else if (notDone.length === applicable.length) status = "todo";
   else status = "progress";
 
-  return { steps, notDone, mismatch, diff, expected, capturedCount, outstanding, status };
+  return { steps, notDone, mismatch, diff, status };
 }
 
 export interface DaySummary {
@@ -151,9 +141,6 @@ export interface DaySummary {
   notDone: number;
   overdue: number;
   mismatches: number;
-  /** Total documents still to be captured across all lines. */
-  outstandingDocs: number;
-  outstandingLines: number;
 }
 
 export function summarise(date: string, checks: DayCheck[], nowMs: number): DaySummary {
@@ -164,8 +151,6 @@ export function summarise(date: string, checks: DayCheck[], nowMs: number): DayS
     notDone: 0,
     overdue: 0,
     mismatches: 0,
-    outstandingDocs: 0,
-    outstandingLines: 0,
   };
   for (const check of checks) {
     const a = analyse(check, nowMs);
@@ -176,10 +161,6 @@ export function summarise(date: string, checks: DayCheck[], nowMs: number): DayS
       if (a.steps[step].overdue) s.overdue += 1;
     }
     if (a.mismatch) s.mismatches += 1;
-    if (a.outstanding !== null && a.outstanding > 0) {
-      s.outstandingDocs += a.outstanding;
-      s.outstandingLines += 1;
-    }
   }
   return s;
 }

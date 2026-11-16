@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DaySummary } from "@/lib/logic";
 import { formatDay } from "@/lib/time";
 
-export type SeriesKey = "notDone" | "mismatches" | "outstandingDocs";
+export type SeriesKey = "notDone" | "mismatches";
 
 /**
  * One colour per measure, used for the lines here and for the keys on the tiles.
@@ -13,7 +13,6 @@ export type SeriesKey = "notDone" | "mismatches" | "outstandingDocs";
 export const SERIES: { key: SeriesKey; label: string; color: string }[] = [
   { key: "notDone", label: "Checks not done", color: "#2a78d6" },
   { key: "mismatches", label: "Count mismatches", color: "#eb6834" },
-  { key: "outstandingDocs", label: "Documents not captured", color: "#006838" },
 ];
 
 const PAD = { top: 16, right: 20, bottom: 30, left: 44 };

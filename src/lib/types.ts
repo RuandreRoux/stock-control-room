@@ -1,4 +1,4 @@
-export type StepKey = "physical" | "received" | "captured";
+export type StepKey = "physical" | "received";
 
 /** The editable columns of a checklist line (mirrors the Excel template). */
 export interface LineFields {
@@ -41,7 +41,6 @@ export interface DayCheck {
   line: LineFields & { order: number };
   physical: StepEntry;
   received: StepEntry;
-  captured: StepEntry;
 }
 
 export type Role = "none" | "team" | "admin";

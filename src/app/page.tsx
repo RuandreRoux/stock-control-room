@@ -126,12 +126,7 @@ export default function DailyChecksPage() {
         // With a person selected, "to do" means the checks that person still owes.
         return a.notDone.some((step) => stepMatches(c.line, step, responsible, accountable));
       }
-      return (
-        a.status === "mismatch" ||
-        a.status === "outstanding" ||
-        a.status === "over" ||
-        STEPS.some((s) => a.steps[s].overdue)
-      );
+      return a.status === "mismatch" || STEPS.some((s) => a.steps[s].overdue);
     });
     const byCategory = new Map<string, DayCheck[]>();
     for (const c of visible) {
@@ -161,8 +156,8 @@ export default function DailyChecksPage() {
         <div>
           <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Daily Checks</h1>
           <p className="mt-1 max-w-xl text-[13px] text-ink-600">
-            Tick each check once it is done and enter the number of documents. A tick with no number counts as zero
-            documents.
+            The responsible person counts the documents; the data capturer confirms how many were received. Tick each
+            check once it is done. A tick with no number counts as zero documents.
           </p>
         </div>
         <DateNav date={date} today={today} latest={latest} onChange={setDate} />
@@ -195,7 +190,7 @@ export default function DailyChecksPage() {
         </div>
       )}
 
-      <section aria-label="Progress" className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+      <section aria-label="Progress" className="mt-4 grid grid-cols-2 gap-2 sm:gap-3">
         {progress.map(({ step, total, done, overdue }) => (
           <div key={step} className="card px-3 py-3 sm:px-4">
             <div className="flex flex-col justify-between gap-x-2 sm:flex-row sm:items-baseline">

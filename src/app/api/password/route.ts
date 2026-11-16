@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         await recordFailure(db, user.username, address);
         return fail(400, "Your current password is not correct");
       }
-      const problem = passwordProblem(next, user.username) ?? (next === current ? "Choose a different password" : null);
+      const problem = passwordProblem(next) ?? (next === current ? "Choose a different password" : null);
       if (problem) return fail(400, problem);
       await users(db).updateOne(
         { _id: user._id },

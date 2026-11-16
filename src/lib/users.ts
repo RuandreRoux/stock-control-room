@@ -48,7 +48,7 @@ export async function createUser(db: Db, input: Record<string, unknown>): Promis
     usernameProblem(username) ??
     (!name ? "Enter the person's name" : null) ??
     (person === null || !role ? "Invalid details" : null) ??
-    passwordProblem(input.password, username);
+    passwordProblem(input.password);
   if (problem) return { error: problem, status: 400 };
 
   const now = new Date();
@@ -116,7 +116,7 @@ export async function updateUser(db: Db, id: string, input: Record<string, unkno
     if (!input.active) endSessions = true;
   }
   if (input.password !== undefined) {
-    const problem = passwordProblem(input.password, target.username);
+    const problem = passwordProblem(input.password);
     if (problem) return { error: problem, status: 400 };
     set.passwordHash = await hashPassword(input.password as string);
     set.mustChangePassword = true;
@@ -147,7 +147,7 @@ export async function signUp(
   const username = typeof input.username === "string" ? input.username.trim().toLowerCase() : "";
   const name = text(input.name, 80);
   const problem =
-    (!name ? "Enter your name" : null) ?? usernameProblem(username) ?? passwordProblem(input.password, username);
+    (!name ? "Enter your name" : null) ?? usernameProblem(username) ?? passwordProblem(input.password);
   if (problem) return { error: problem, status: 400 };
 
   if (await blocked(db, `signup:${address}`, MAX_SIGNUPS_PER_ADDRESS)) {

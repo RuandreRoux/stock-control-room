@@ -43,7 +43,7 @@ On first run against an empty database the app loads the 124 lines from the temp
 - **Roles:** a *user* can do the daily checks and see the dashboard. An *admin* can also edit lines, manage users and correct previous days.
 - **Accounts:** people create their own account on the sign-in screen (name, username, password). It can do nothing until an admin approves it on the Admin page (Users tab); a rejected sign-up is removed. A sign-up is always an ordinary user. Admins can also add someone directly with a temporary password, which must be replaced at first sign-in.
 - Admins can reset a password or deactivate an account; both sign that person out at once.
-- **Passwords** are stored only as salted scrypt hashes. A new password needs at least 10 characters with an upper-case letter, a lower-case letter, a number and a special character, and must not contain the username.
+- **Passwords** are stored only as salted scrypt hashes. A new password needs at least 8 characters with an upper-case letter, a lower-case letter, a number and a special character.
 - **Sessions** are recorded on the server, which decides when they end (browsers often keep "session" cookies, so the cookie is not relied on). A session ends:
   - on sign-out, immediately;
   - when the last tab with the app is closed (the page tells the server as it closes; a quick reload of the same tab carries on);
@@ -69,6 +69,10 @@ Admins can turn on desktop alerts on Admin > Users ("Turn on alerts"), once per 
 - Alerts are only sent to the browser makers' push services (Google, Mozilla, Microsoft, Apple), are encrypted so only that browser can read them, and go only to active admins.
 - A computer whose alerts the push service reports as gone is removed automatically.
 - Sending an alert never delays a sign-up by more than about 5 seconds, and a failure never stops the sign-up.
+
+### Teams alerts
+
+An admin can also have new sign-ups posted to a Microsoft Teams channel or chat (Admin > Users > Teams alerts). In Teams, create a workflow from the "Send webhook alerts to a channel" template, copy the address it gives you and paste it on the Admin page. The address is stored in the `meta` collection; only Microsoft workflow addresses are accepted. Names typed on the sign-up form are stripped of formatting characters before they are posted.
 
 ## Configuration
 

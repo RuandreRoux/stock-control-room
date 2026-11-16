@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Db } from "mongodb";
 import webpush from "web-push";
 import { users } from "./auth";
+import { postToTeams, signUpMessage } from "./teams";
 
 /**
  * Desktop alerts for admins (Web Push). An admin turns them on once per computer; the
@@ -144,13 +145,16 @@ export async function alertAdmins(db: Db, alert: Alert, onlyUserId?: string): Pr
   }
 }
 
-/** Alert admins about a new sign-up, waiting at most a few seconds. */
+/** Alert admins about a new sign-up (desktop alerts and Teams), waiting at most a few seconds. */
 export async function alertNewSignUp(db: Db, name: string, username: string): Promise<void> {
-  const send = alertAdmins(db, {
-    title: "New sign-up waiting for approval",
-    body: `${name} (${username}) wants to use the Stock Control Room.`,
-    url: "/admin?view=users",
-    tag: "signup",
-  });
-  await Promise.race([send, new Promise((resolve) => setTimeout(resolve, 5000))]);
+  const send = Promise.allSettled([
+    alertAdmins(db, {
+      title: "New sign-up waiting for approval",
+      body: `${name} (${username}) wants to use the Stock Control Room.`,
+      url: "/admin?view=users",
+      tag: "signup",
+    }),
+    postToTeams(db, signUpMessage(name, username)),
+  ]);
+  await Promise.race([send, new Promise((resolve) => setTimeout(resolve, 5500))]);
 }

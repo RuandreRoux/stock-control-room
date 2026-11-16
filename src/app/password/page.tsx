@@ -29,7 +29,7 @@ export default function PasswordPage() {
   }, []);
 
   const mismatch = again.length > 0 && next !== again ? "The two new passwords do not match" : null;
-  const rules = passwordRules(next, user?.username ?? "");
+  const rules = passwordRules(next);
   const rulesMet = rules.every((rule) => rule.ok);
 
   const save = async (e: React.FormEvent) => {
@@ -71,7 +71,7 @@ export default function PasswordPage() {
             autoFocus
           />
           <PasswordField label="New password" value={next} onChange={setNext} autoComplete="new-password" />
-          <PasswordRules password={next} username={user?.username ?? ""} />
+          <PasswordRules password={next} />
           <PasswordField label="New password again" value={again} onChange={setAgain} autoComplete="new-password" error={mismatch} />
           {error && (
             <p role="alert" className="text-[13px] font-semibold text-danger">

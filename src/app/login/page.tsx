@@ -34,7 +34,7 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   const cleanUsername = username.trim().toLowerCase();
-  const rulesMet = passwordRules(password, cleanUsername).every((rule) => rule.ok);
+  const rulesMet = passwordRules(password).every((rule) => rule.ok);
   const mismatch = again.length > 0 && password !== again ? "The two passwords do not match" : null;
 
   const switchTo = (next: Mode) => {
@@ -176,7 +176,7 @@ export default function LoginPage() {
                   </span>
                 </label>
                 <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="new-password" />
-                <PasswordRules password={password} username={cleanUsername} />
+                <PasswordRules password={password} />
                 <PasswordField label="Password again" value={again} onChange={setAgain} autoComplete="new-password" error={mismatch} />
                 {error && (
                   <p role="alert" className="text-[13px] font-semibold text-danger">

@@ -99,6 +99,14 @@ export async function fakeVerify(): Promise<void> {
 // Passwords that meet the rules on paper but are among the first anyone would guess.
 const COMMON = new Set([
   "password1!",
+  "passw0rd!",
+  "passw0rd1!",
+  "welcome1!",
+  "welcome2026!",
+  "qwerty123!",
+  "abcd1234!",
+  "abc12345!",
+  "agritech1!",
   "password123!",
   "passw0rd123!",
   "welcome123!",
@@ -110,10 +118,10 @@ const COMMON = new Set([
 ]);
 
 /** Returns what is wrong with a new password, or null when it is acceptable. */
-export function passwordProblem(password: unknown, username: string): string | null {
+export function passwordProblem(password: unknown): string | null {
   if (typeof password !== "string") return "Enter a password";
   if (password.length > 200) return "That password is too long";
-  const failed = passwordRules(password, username).find((rule) => !rule.ok);
+  const failed = passwordRules(password).find((rule) => !rule.ok);
   if (failed) return `The password needs: ${failed.label.charAt(0).toLowerCase()}${failed.label.slice(1)}`;
   if (COMMON.has(password.toLowerCase())) return "That password is too easy to guess";
   return null;

@@ -4,6 +4,7 @@ import { AlertCircle, Check, KeyRound, Pencil, Plus, Trash2, X } from "lucide-re
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, useSessionUser } from "@/lib/client";
 import { AlertsCard } from "./AlertsCard";
+import { TeamsCard } from "./TeamsCard";
 import { formatDay, formatTime, sastDate } from "@/lib/time";
 import type { Role, UserAccount } from "@/lib/types";
 
@@ -179,7 +180,7 @@ function UserDialog({
                   type="text"
                   className="input font-mono"
                   required
-                  minLength={10}
+                  minLength={8}
                   maxLength={200}
                   autoComplete="off"
                   value={password}
@@ -285,6 +286,7 @@ export function UsersAdmin({ people }: { people: string[] }) {
       </div>
 
       <AlertsCard />
+      <TeamsCard />
 
       {error && (
         <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-[13px]">

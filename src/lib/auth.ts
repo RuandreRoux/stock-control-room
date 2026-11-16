@@ -129,7 +129,7 @@ export function usernameProblem(username: unknown): string | null {
 // ---------- Guessing limits ----------
 
 const WINDOW_MS = 15 * 60 * 1000;
-export const MAX_PER_USERNAME = 5;
+export const MAX_PER_USERNAME = 10;
 const MAX_PER_ADDRESS = 30;
 
 export async function clientAddress(): Promise<string> {

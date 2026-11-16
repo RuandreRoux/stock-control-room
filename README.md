@@ -49,7 +49,7 @@ On first run against an empty database the app loads the 124 lines from the temp
   - after 30 minutes with no contact from the browser (covers a crash, a phone closing the browser, or a sleeping computer);
   - after 12 hours regardless.
   Only a hash of the session token is stored.
-- **Guessing:** five wrong passwords for a username lock sign-in for that username for 15 minutes. Sign-ups are limited per network address, and at most 50 can be waiting for approval.
+- **Guessing:** ten wrong passwords for a username lock sign-in for that username for 15 minutes. Sign-ups are limited per network address, and at most 50 can be waiting for approval.
 - Each check records the signed-in person's name; the browser cannot supply a different one.
 
 ### The first admin

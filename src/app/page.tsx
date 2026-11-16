@@ -30,6 +30,7 @@ export default function DailyChecksPage() {
   // jump away the moment its last box is ticked.
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
+  const [unlocked, setUnlocked] = useState(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60000);
@@ -40,10 +41,14 @@ export default function DailyChecksPage() {
   }, [date, person, category, show, search]);
   useEffect(() => {
     setOpen(new Set());
+    setUnlocked(false);
   }, [date]);
 
   const checks = data?.checks;
-  const canEdit = data?.canEdit ?? false;
+  // Previous days stay locked until someone deliberately unlocks them, so the record is not changed by accident.
+  const isPast = date < today;
+  const mayEdit = data?.canEdit ?? false;
+  const canEdit = mayEdit && (!isPast || unlocked);
 
   const people = useMemo(() => {
     const names = new Set<string>();
@@ -156,11 +161,21 @@ export default function DailyChecksPage() {
         <DateNav date={date} today={today} onChange={setDate} />
       </div>
 
-      {data && !canEdit && (
-        <div className="mt-4 flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-3 text-[13px] text-ink-800">
+      {data && isPast && (
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-ink-200 bg-white px-4 py-3 text-[13px] text-ink-800">
           <Lock size={16} strokeWidth={1.75} className="flex-none text-ink-600" aria-hidden />
-          You are reviewing a previous day. Entries are read-only; an admin can correct them after signing in on the
-          Admin page.
+          <span className="min-w-0 flex-1">
+            {canEdit
+              ? "This previous day is unlocked. Changes you make are saved to the record."
+              : mayEdit
+                ? "You are reviewing a previous day. Entries are locked to protect the record."
+                : "You are reviewing a previous day. Entries are read-only; an admin can correct them after signing in on the Admin page."}
+          </span>
+          {mayEdit && (
+            <button type="button" className="btn btn-ghost" onClick={() => setUnlocked((v) => !v)}>
+              {unlocked ? "Lock again" : "Unlock to edit"}
+            </button>
+          )}
         </div>
       )}
       {(error || saveError) && (

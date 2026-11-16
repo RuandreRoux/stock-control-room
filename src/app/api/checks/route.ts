@@ -7,7 +7,7 @@ import type { StepKey } from "@/lib/types";
 export async function PATCH(req: Request) {
   const body = await readBody(req);
   if (!body) return fail(400, "Invalid request");
-  const { date, lineId, step, checked, count, comment, by } = body;
+  const { date, lineId, step, checked, count, comment } = body;
 
   if (!isValidDate(date)) return fail(400, "Invalid date");
   if (typeof lineId !== "string" || !/^[a-f0-9]{24}$/.test(lineId)) return fail(400, "Invalid line");
@@ -29,14 +29,12 @@ export async function PATCH(req: Request) {
       patch.count = n;
     }
   }
-  const editor = typeof by === "string" && by.trim() ? by.trim().slice(0, 80) : null;
-
-  return withDb("team", async (db, role) => {
+  return withDb("user", async (db, user) => {
     const today = sastDate();
     if (date > today) return fail(400, "That day has not started yet");
     if (!isWorkingDay(date)) return fail(400, "There are no checks on weekends or public holidays");
-    if (date < today && role !== "admin") return fail(403, "Previous days are read-only");
-    const updated = await updateStep(db, date, lineId, step as StepKey, patch, editor);
+    if (date < today && user.role !== "admin") return fail(403, "Previous days are read-only");
+    const updated = await updateStep(db, date, lineId, step as StepKey, patch, user.name);
     if (!updated) return fail(404, "Line not found for this day");
     return json(updated);
   });

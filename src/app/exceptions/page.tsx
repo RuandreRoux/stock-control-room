@@ -77,7 +77,7 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 export default function ExceptionsPage() {
   const { date, today, latest, setDate } = useCheckDate();
-  const { data, error } = useDay(date, "");
+  const { data, error } = useDay(date);
   const [tab, setTab] = useState<Tab>("notDone");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Exception totals for recent working days, newest first: the graph and the table below share it.

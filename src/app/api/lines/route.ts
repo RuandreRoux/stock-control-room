@@ -5,7 +5,7 @@ import type { LineFields } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return withDb("team", async (db, role) => json({ role, lines: await listLines(db) }));
+  return withDb("user", async (db, user) => json({ role: user.role, lines: await listLines(db) }));
 }
 
 export async function POST(req: Request) {

@@ -6,7 +6,7 @@ import type { DayResponse } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
-  return withDb("team", async (db, role) => {
+  return withDb("user", async (db, user) => {
     const today = sastDate();
     const date = new URL(req.url).searchParams.get("date") || today;
     if (!isValidDate(date)) return fail(400, "Invalid date");
@@ -14,9 +14,9 @@ export async function GET(req: Request) {
     const body: DayResponse = {
       date,
       today,
-      role,
+      role: user.role,
       // Previous days are a record: only an admin can correct them.
-      canEdit: date === today || (date < today && role === "admin"),
+      canEdit: date === today || (date < today && user.role === "admin"),
       checks,
     };
     return json(body);

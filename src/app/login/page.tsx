@@ -1,8 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { AccessForm } from "@/components/AccessForm";
+import { useState } from "react";
 import { BrandBackdrop, Logo } from "@/components/Brand";
+import { PasswordField } from "@/components/PasswordField";
+import { api } from "@/lib/client";
+import type { SessionUser } from "@/lib/types";
 
 const FACTS = [
   { value: "06:00", label: "Business day starts" },
@@ -10,10 +13,34 @@ const FACTS = [
   { value: "Mon-Fri", label: "Working days" },
 ];
 
+/** Only ever return to a page inside this app. */
+function safeNext(next: string | null): string {
+  return next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") ? next : "/";
+}
+
 export default function LoginPage() {
-  const next = useSearchParams().get("next") || "/";
-  // Only ever return to a page inside this app.
-  const target = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const target = safeNext(useSearchParams().get("next"));
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const signIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api<{ user: SessionUser }>("/api/session", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      });
+      window.location.href = res.user.mustChangePassword ? `/password?next=${encodeURIComponent(target)}` : target;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not sign in");
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-brand-900">
       <BrandBackdrop />
@@ -46,8 +73,29 @@ export default function LoginPage() {
             <Logo width={190} />
           </div>
           <h2 className="mt-6 font-display text-xl font-bold text-ink-900">Sign In</h2>
-          <p className="mb-4 mt-1 text-[13px] text-ink-600">Enter the access code your team was given.</p>
-          <AccessForm label="Access code" onDone={() => (window.location.href = target)} />
+          <p className="mb-4 mt-1 text-[13px] text-ink-600">Use your own username and password.</p>
+          <form className="space-y-3" onSubmit={signIn}>
+            <label className="block">
+              <span className="caps mb-1 block">Username</span>
+              <input
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                autoFocus
+                className="input"
+                value={username}
+                maxLength={80}
+                onChange={(e) => setUsername(e.target.value)}
+              />
+            </label>
+            <PasswordField label="Password" value={password} onChange={setPassword} autoComplete="current-password" error={error} />
+            <button type="submit" className="btn btn-primary w-full" disabled={busy || !username || !password}>
+              {busy ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+          <p className="mt-4 text-[12px] text-ink-600">Forgotten your password? Ask an admin to reset it.</p>
         </div>
       </div>
     </div>

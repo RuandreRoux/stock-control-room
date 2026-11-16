@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckRow, HEADER_GRID } from "@/components/CheckRow";
 import { Loading } from "@/components/Brand";
 import { DateNav } from "@/components/DateNav";
-import { useCheckDate, useDay, useStored, type StepChange } from "@/lib/client";
+import { useCheckDate, useDay, useSessionUser, useStored, type StepChange } from "@/lib/client";
 import { analyse, lineMatches, namesOf, STEP_LABEL, STEPS, stepMatches, type Analysis } from "@/lib/logic";
 import type { DayCheck, StepKey } from "@/lib/types";
 
@@ -19,9 +19,11 @@ const SHOW_OPTIONS: { value: Show; label: string }[] = [
 
 export default function DailyChecksPage() {
   const { date, today, latest, setDate } = useCheckDate();
-  const [responsible, setResponsible] = useStored("scr.responsible");
-  const [accountable, setAccountable] = useStored("scr.accountable");
-  const { data, error, saveState, saveError, update } = useDay(date, responsible || accountable);
+  const user = useSessionUser();
+  // Filters are remembered per person, so a shared computer does not carry one person's view to the next.
+  const [responsible, setResponsible] = useStored(`scr.responsible.${user?.username ?? ""}`);
+  const [accountable, setAccountable] = useStored(`scr.accountable.${user?.username ?? ""}`);
+  const { data, error, saveState, saveError, update } = useDay(date);
 
   const [category, setCategory] = useState("");
   const [show, setShow] = useState<Show>("all");
@@ -65,6 +67,20 @@ export default function DailyChecksPage() {
     const sorted = (set: Set<string>) => [...set].sort((x, y) => x.localeCompare(y));
     return { responsibles: sorted(r), accountables: sorted(acc) };
   }, [checks]);
+
+  // First visit: start on the lines of the person this account belongs to.
+  useEffect(() => {
+    if (!user?.person || !checks || checks.length === 0) return;
+    const seen = `scr.started.${user.username}`;
+    try {
+      if (window.localStorage.getItem(seen)) return;
+      window.localStorage.setItem(seen, "1");
+    } catch {
+      return;
+    }
+    if (responsibles.includes(user.person)) setResponsible(user.person);
+    else if (accountables.includes(user.person)) setAccountable(user.person);
+  }, [user, checks, responsibles, accountables, setResponsible, setAccountable]);
 
   // A remembered name that no longer exists (for example after a rename) is dropped.
   useEffect(() => {
@@ -171,7 +187,7 @@ export default function DailyChecksPage() {
               ? "This previous day is unlocked. Changes you make are saved to the record."
               : mayEdit
                 ? "You are reviewing a previous day. Entries are locked to protect the record."
-                : "You are reviewing a previous day. Entries are read-only; an admin can correct them after signing in on the Admin page."}
+                : "You are reviewing a previous day. Entries are read-only; an admin can correct them."}
           </span>
           {mayEdit && (
             <button type="button" className="btn btn-ghost" onClick={() => setUnlocked((v) => !v)}>

@@ -1,5 +1,6 @@
 import { ObjectId, type Db } from "mongodb";
 import seedLines from "./seed-lines.json";
+import { ensureAuthIndexes } from "./auth";
 import { sortChecks } from "./logic";
 import { isValidTime, isWorkingDay, sastDate } from "./time";
 import { LINE_FIELD_KEYS, type DayCheck, type Line, type LineFields, type StepEntry } from "./types";
@@ -29,6 +30,7 @@ export function ensureSetup(db: Db): Promise<void> {
   if (!globalForSetup._scrSetup) {
     const run = async () => {
       await checks(db).createIndex({ date: 1, lineId: 1 }, { unique: true });
+      await ensureAuthIndexes(db);
       const meta = db.collection<{ _id: string; at: Date }>("meta");
       try {
         await meta.insertOne({ _id: "seed", at: new Date() });

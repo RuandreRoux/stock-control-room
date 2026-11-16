@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /** Exception totals per day for the days leading up to (and including) `to`. */
 export async function GET(req: Request) {
-  return withDb("team", async (db) => {
+  return withDb("user", async (db) => {
     const params = new URL(req.url).searchParams;
     const today = sastDate();
     const to = params.get("to") || today;

@@ -1,9 +1,18 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { isValidDate, latestWorkingDay, sastDate } from "./time";
-import type { DayCheck, DayResponse, StepKey } from "./types";
+import type { DayCheck, DayResponse, SessionUser, StepKey } from "./types";
+
+/** The signed-in person, provided by the app shell. Null until it is known. */
+export const SessionContext = createContext<SessionUser | null>(null);
+export const useSessionUser = () => useContext(SessionContext);
+
+function goTo(path: string): void {
+  const next = window.location.pathname + window.location.search;
+  window.location.href = `${path}?next=${encodeURIComponent(next)}`;
+}
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
@@ -11,12 +20,16 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     cache: "no-store",
     headers: init?.body ? { "Content-Type": "application/json" } : undefined,
   });
-  if (res.status === 401 && !path.startsWith("/api/session")) {
-    const next = window.location.pathname + window.location.search;
-    window.location.href = `/login?next=${encodeURIComponent(next)}`;
+  const authCall = path.startsWith("/api/session") || path.startsWith("/api/password");
+  if (res.status === 401 && !authCall) {
+    goTo("/login");
     throw new Error("Sign in to continue");
   }
   const body = await res.json().catch(() => null);
+  if (res.status === 403 && body?.code === "password_change" && !authCall) {
+    goTo("/password");
+    throw new Error("Choose a new password to continue");
+  }
   if (!res.ok) throw new Error(body?.error || "Something went wrong. Please try again.");
   return body as T;
 }
@@ -76,7 +89,7 @@ export type SaveState = "idle" | "saving" | "saved" | "error";
 const POLL_MS = 20000;
 
 /** Loads a day's check sheet, keeps it fresh while the tab is open, and saves edits as they are made. */
-export function useDay(date: string, by: string) {
+export function useDay(date: string) {
   const [data, setData] = useState<DayResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -150,7 +163,7 @@ export function useDay(date: string, by: string) {
       try {
         const saved = await api<DayCheck>("/api/checks", {
           method: "PATCH",
-          body: JSON.stringify({ date: d, lineId, step, ...change, by }),
+          body: JSON.stringify({ date: d, lineId, step, ...change }),
         });
         lastSaved.current.set(lineId, Date.now());
         const remaining = (inFlight.current.get(lineId) ?? 1) - 1;
@@ -169,7 +182,7 @@ export function useDay(date: string, by: string) {
         load(d, true); // fall back to what the server has
       }
     },
-    [by, load],
+    [load],
   );
 
   return { data, error, saveState, saveError, update, reload: () => load(date, true) };

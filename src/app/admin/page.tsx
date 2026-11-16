@@ -2,10 +2,11 @@
 
 import { AlertCircle, Copy, Pencil, Plus, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessForm } from "@/components/AccessForm";
-import { api } from "@/lib/client";
+import { UsersAdmin } from "@/components/UsersAdmin";
+import { api, useSessionUser } from "@/lib/client";
+import { namesOf } from "@/lib/logic";
 import { DEFAULT_CATEGORIES, DEFAULT_WAREHOUSES } from "@/lib/options";
-import { LINE_FIELD_KEYS, type Line, type LineFields, type Role } from "@/lib/types";
+import { LINE_FIELD_KEYS, type Line, type LineFields } from "@/lib/types";
 
 const BLANK: LineFields = {
   category: "",
@@ -263,8 +264,8 @@ function LineDialog({
 
 export default function AdminPage() {
   const [lines, setLines] = useState<Line[] | null>(null);
-  const [role, setRole] = useState<Role | null>(null);
-  const [codeRequired, setCodeRequired] = useState(false);
+  const user = useSessionUser();
+  const [view, setView] = useState<"lines" | "users">("lines");
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [search, setSearch] = useState("");
@@ -273,13 +274,7 @@ export default function AdminPage() {
 
   const load = useCallback(async () => {
     try {
-      const [res, session] = await Promise.all([
-        api<{ role: Role; lines: Line[] }>("/api/lines"),
-        api<{ adminCodeRequired: boolean }>("/api/session"),
-      ]);
-      setLines(res.lines);
-      setRole(res.role);
-      setCodeRequired(session.adminCodeRequired);
+      setLines((await api<{ lines: Line[] }>("/api/lines")).lines);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load the lines");
@@ -310,6 +305,13 @@ export default function AdminPage() {
 
   const categories = useMemo(() => [...new Set((lines ?? []).map((l) => l.category))], [lines]);
 
+  // The individual names that appear in the Responsible and Accountable filters.
+  const peopleNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const line of lines ?? []) for (const key of PERSON_KEYS) namesOf(line[key]).forEach((n) => names.add(n));
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [lines]);
+
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
     return (lines ?? []).filter((l) => {
@@ -322,13 +324,14 @@ export default function AdminPage() {
 
   const inactiveCount = (lines ?? []).filter((l) => !l.active).length;
 
-  if (role !== null && role !== "admin") {
+  if (user && user.role !== "admin") {
     return (
       <div className="mx-auto mt-12 max-w-sm">
         <div className="card p-6">
           <h1 className="font-display text-xl font-bold text-ink-900">Admin</h1>
-          <p className="mb-4 mt-1 text-[13px] text-ink-600">Enter the admin code to add or edit checklist lines.</p>
-          <AccessForm label="Admin code" onDone={load} />
+          <p className="mt-1 text-[13px] text-ink-600">
+            This page is for admins only. Ask an admin if you need a line changed or a password reset.
+          </p>
         </div>
       </div>
     );
@@ -336,27 +339,42 @@ export default function AdminPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Checklist Lines</h1>
-          <p className="mt-1 max-w-xl text-[13px] text-ink-600">
-            Add a line or edit any column. Changes apply from today&rsquo;s sheet onwards; previous days keep the details
-            they were checked against.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {codeRequired && (
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Admin</h1>
+        <div className="inline-flex rounded-sm border border-ink-200 bg-white p-0.5" role="group" aria-label="Admin section">
+          {(
+            [
+              { value: "lines", label: "Checklist lines" },
+              { value: "users", label: "Users" },
+            ] as const
+          ).map((option) => (
             <button
+              key={option.value}
               type="button"
-              className="btn btn-ghost"
-              onClick={async () => {
-                await api("/api/session", { method: "DELETE" });
-                window.location.href = "/";
-              }}
+              aria-pressed={view === option.value}
+              onClick={() => setView(option.value)}
+              className={`h-8 rounded-sm px-3 font-display text-[12px] font-semibold uppercase tracking-[0.05em] transition-colors duration-200 ${
+                view === option.value ? "bg-brand text-white" : "text-ink-600 hover:bg-brand-50 hover:text-brand"
+              }`}
             >
-              Sign out
+              {option.label}
             </button>
-          )}
+          ))}
+        </div>
+      </div>
+
+      {view === "users" ? (
+        <div className="mt-4">
+          <UsersAdmin people={peopleNames} />
+        </div>
+      ) : (
+        <>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="max-w-2xl text-[13px] text-ink-600">
+          Add a line or edit any column. Changes apply from today&rsquo;s sheet onwards; previous days keep the details
+          they were checked against.
+        </p>
+        <div className="flex gap-2">
           <button
             type="button"
             className="btn btn-primary"
@@ -509,6 +527,8 @@ export default function AdminPage() {
             load();
           }}
         />
+      )}
+        </>
       )}
     </div>
   );

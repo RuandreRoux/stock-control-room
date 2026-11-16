@@ -13,7 +13,7 @@ Replaces the shared Excel checklist so that every team works on one version and 
 - The two counts must match. Whether the documents were then captured in the system is not tracked.
 - Ticking a check with no number counts as zero documents. Entering a number ticks the check.
 - Lines whose physical responsible person is `N/A` only have the DC received check.
-- Today's sheet is editable by everyone. Previous days are locked; an admin (or everyone, when no admin code is set) can unlock a day to correct it.
+- Today's sheet is editable by every signed-in user. Previous days are locked; an admin can unlock a day to correct it.
 
 ## Pages
 
@@ -30,8 +30,29 @@ MongoDB database `stock_control_room`:
 - `lines` - the checklist lines (the columns of the Excel template).
 - `checks` - one record per line per day, with a copy of the line details for that day and the two checks.
 - `meta` - a marker so the starting lines are only loaded once.
+- `users` - accounts (username, name, role, password hash).
+- `sessions` - signed-in sessions, removed on sign-out and after 12 hours.
+- `throttle` - short-lived counters of failed sign-in attempts.
 
 On first run against an empty database the app loads the 124 lines from the template (`src/lib/seed-lines.json`).
+
+## Sign-in and security
+
+- Everyone signs in with their own username and password. There are no shared codes.
+- **Roles:** a *user* can do the daily checks and see the dashboard. An *admin* can also edit lines, manage users and correct previous days.
+- **Accounts** are created on the Admin page (Users tab). A new user gets a temporary password and must choose their own at first sign-in. Admins can reset a password or deactivate an account; both sign that person out at once.
+- **Passwords** are stored only as salted scrypt hashes. New passwords need at least 10 characters.
+- **Sessions:** the cookie ends when the browser closes; on the server a session lasts 12 hours at most. Signing out deletes the session on the server, so a copied cookie stops working. Only a hash of the session token is stored.
+- **Guessing:** five wrong passwords for a username lock sign-in for that username for 15 minutes.
+- Each check records the signed-in person's name; the browser cannot supply a different one.
+
+### The first admin
+
+Every account after the first is created in the app. To create the very first admin, generate a record and insert it into the `users` collection:
+
+```bash
+node scripts/create-admin.mjs <username> "<Full name>" "<temporary password>"
+```
 
 ## Configuration
 
@@ -41,8 +62,6 @@ See `.env.example`. Set the same variables in Vercel under Project Settings > En
 |---|---|---|
 | `MONGODB_URI` | yes | Atlas connection string |
 | `MONGODB_DB` | no | Database name, defaults to `stock_control_room` |
-| `APP_ACCESS_CODE` | recommended | Shared code to open the app |
-| `ADMIN_ACCESS_CODE` | recommended | Code for the Admin page and for correcting previous days |
 
 Atlas must allow connections from Vercel (Network Access).
 

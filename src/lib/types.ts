@@ -43,7 +43,23 @@ export interface DayCheck {
   received: StepEntry;
 }
 
-export type Role = "none" | "team" | "admin";
+export type Role = "user" | "admin";
+
+/** What the browser knows about the signed-in person. */
+export interface SessionUser {
+  id: string;
+  username: string;
+  name: string;
+  role: Role;
+  person: string;
+  mustChangePassword: boolean;
+}
+
+/** A user account as shown on the Admin page (never includes the password). */
+export interface UserAccount extends SessionUser {
+  active: boolean;
+  lastLoginAt: string | null;
+}
 
 export interface DayResponse {
   date: string;

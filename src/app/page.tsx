@@ -1,103 +1,342 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { AlertCircle, ChevronDown, Lock, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckRow, ROW_GRID } from "@/components/CheckRow";
+import { DateNav } from "@/components/DateNav";
+import { useCheckDate, useDay, usePerson, type StepChange } from "@/lib/client";
+import { analyse, isNA, personMatches, STEP_LABEL, STEPS, stepInfo, type Analysis } from "@/lib/logic";
+import type { DayCheck, StepKey } from "@/lib/types";
+
+type Show = "all" | "todo" | "exceptions";
+
+const SHOW_OPTIONS: { value: Show; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "todo", label: "To do" },
+  { value: "exceptions", label: "Exceptions" },
+];
+
+export default function DailyChecksPage() {
+  const { date, today, setDate } = useCheckDate();
+  const [person, setPerson] = usePerson();
+  const { data, error, saveState, saveError, update } = useDay(date, person);
+
+  const [category, setCategory] = useState("");
+  const [show, setShow] = useState<Show>("all");
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Lines edited since the filter was last changed stay on screen, so a row does not
+  // jump away the moment its last box is ticked.
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    setTouched(new Set());
+  }, [date, person, category, show, search]);
+  useEffect(() => {
+    setOpen(new Set());
+  }, [date]);
+
+  const checks = data?.checks;
+  const canEdit = data?.canEdit ?? false;
+
+  const people = useMemo(() => {
+    const names = new Set<string>();
+    for (const c of checks ?? []) {
+      for (const name of [
+        c.line.responsiblePerson,
+        c.line.systemResponsiblePerson,
+        c.line.physicalAccountablePerson,
+        c.line.systemAccountablePerson,
+      ]) {
+        if (!isNA(name)) names.add(name);
+      }
+    }
+    if (person) names.add(person);
+    return [...names].sort((x, y) => x.localeCompare(y));
+  }, [checks, person]);
+
+  const categories = useMemo(() => [...new Set((checks ?? []).map((c) => c.line.category))], [checks]);
+
+  const analysed = useMemo(() => {
+    const map = new Map<string, Analysis>();
+    for (const c of checks ?? []) map.set(c.lineId, analyse(c, now));
+    return map;
+  }, [checks, now]);
+
+  const mine = useMemo(() => (checks ?? []).filter((c) => personMatches(c.line, person)), [checks, person]);
+
+  const progress = useMemo(
+    () =>
+      STEPS.map((step) => {
+        let total = 0;
+        let done = 0;
+        let overdue = 0;
+        for (const c of mine) {
+          const state = analysed.get(c.lineId)!.steps[step];
+          if (!state.applicable) continue;
+          total += 1;
+          if (state.done) done += 1;
+          if (state.overdue) overdue += 1;
+        }
+        return { step, total, done, overdue };
+      }),
+    [mine, analysed],
+  );
+
+  const groups = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const visible = mine.filter((c) => {
+      if (category && c.line.category !== category) return false;
+      if (term) {
+        const haystack = [
+          c.line.stockMovement,
+          c.line.fromWarehouse,
+          c.line.toWarehouse,
+          c.line.physicalDocument,
+          c.line.systemDocument,
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(term)) return false;
+      }
+      if (show === "all" || touched.has(c.lineId)) return true;
+      const a = analysed.get(c.lineId)!;
+      if (show === "todo") {
+        // With a person selected, "to do" means the checks that person still owes.
+        return a.notDone.some((step) => {
+          const info = stepInfo(c.line, step);
+          return !person || info.responsible === person || info.accountable === person;
+        });
+      }
+      return (
+        a.status === "mismatch" ||
+        a.status === "outstanding" ||
+        a.status === "over" ||
+        STEPS.some((s) => a.steps[s].overdue)
+      );
+    });
+    const byCategory = new Map<string, DayCheck[]>();
+    for (const c of visible) {
+      const list = byCategory.get(c.line.category);
+      if (list) list.push(c);
+      else byCategory.set(c.line.category, [c]);
+    }
+    return [...byCategory.entries()];
+  }, [mine, category, search, show, touched, analysed, person]);
+
+  const visibleCount = groups.reduce((n, [, list]) => n + list.length, 0);
+
+  const onChange = (lineId: string, step: StepKey, change: StepChange) => {
+    setTouched((prev) => (prev.has(lineId) ? prev : new Set(prev).add(lineId)));
+    update(lineId, step, change);
+  };
+  const toggle = (set: Set<string>, key: string) => {
+    const next = new Set(set);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Daily Checks</h1>
+          <p className="mt-1 max-w-xl text-[13px] text-ink-600">
+            Tick each check once it is done and enter the number of documents. A tick with no number counts as zero
+            documents.
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+        <DateNav date={date} today={today} onChange={setDate} />
+      </div>
+
+      {data && !canEdit && (
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-ink-200 bg-white px-4 py-3 text-[13px] text-ink-800">
+          <Lock size={16} strokeWidth={1.75} className="flex-none text-ink-600" aria-hidden />
+          You are reviewing a previous day. Entries are read-only; an admin can correct them after signing in on the
+          Admin page.
+        </div>
+      )}
+      {(error || saveError) && (
+        <div
+          role="alert"
+          className="mt-4 flex items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-[13px] text-ink-800"
         >
-          <Image
+          <AlertCircle size={16} strokeWidth={1.75} className="flex-none text-danger" aria-hidden />
+          {saveError ? `Your last change was not saved: ${saveError}` : error}
+        </div>
+      )}
+
+      <section aria-label="Progress" className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+        {progress.map(({ step, total, done, overdue }) => (
+          <div key={step} className="card px-3 py-3 sm:px-4">
+            <div className="flex flex-col justify-between gap-x-2 sm:flex-row sm:items-baseline">
+              <p className="caps">{STEP_LABEL[step]}</p>
+              <p className="text-[13px] text-ink-600">
+                <span className="font-display text-base font-bold text-ink-900">{done}</span> of {total}
+              </p>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-100" aria-hidden>
+              <div
+                className="h-full rounded-full bg-brand transition-[width] duration-300"
+                style={{ width: total ? `${(done / total) * 100}%` : "0%" }}
+              />
+            </div>
+            <p className="mt-2 flex min-h-5 items-center gap-1 text-[12px] leading-tight text-ink-600">
+              {overdue > 0 ? (
+                <>
+                  <AlertCircle size={14} strokeWidth={1.75} className="text-danger" aria-hidden />
+                  <span className="font-semibold text-ink-800">{overdue} overdue</span>
+                </>
+              ) : total > 0 && done === total ? (
+                "All done"
+              ) : (
+                `${total - done} still to do`
+              )}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      <section aria-label="Filters" className="mt-4 flex flex-wrap items-end gap-3">
+        <label className="w-[calc(50%-6px)] sm:w-52">
+          <span className="caps mb-1 block">Show lines for</span>
+          <select className="input" value={person} onChange={(e) => setPerson(e.target.value)}>
+            <option value="">Everyone</option>
+            {people.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="w-[calc(50%-6px)] sm:w-48">
+          <span className="caps mb-1 block">Category</span>
+          <select className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option value="">All categories</option>
+            {categories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div>
+          <span className="caps mb-1 block">View</span>
+          <div className="inline-flex rounded-sm border border-ink-200 bg-white p-0.5" role="group" aria-label="View">
+            {SHOW_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={show === o.value}
+                onClick={() => setShow(o.value)}
+                className={`h-8 rounded-sm px-3 font-display text-[12px] font-semibold uppercase tracking-[0.05em] transition-colors duration-200 ${
+                  show === o.value ? "bg-brand text-white" : "text-ink-600 hover:bg-brand-50 hover:text-brand"
+                }`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="relative w-full sm:ml-auto sm:w-56">
+          <span className="sr-only">Search lines</span>
+          <Search
+            size={16}
+            strokeWidth={1.75}
+            className="pointer-events-none absolute left-3 top-2.5 text-ink-400"
             aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          <input
+            type="search"
+            className="input pl-9"
+            placeholder="Search lines"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </label>
+      </section>
+
+      <div className="mt-2 flex h-5 items-center justify-between text-[12px] text-ink-600">
+        <span>{data ? `${visibleCount} of ${data.checks.length} lines` : ""}</span>
+        <span aria-live="polite">
+          {saveState === "saving" ? "Saving..." : saveState === "saved" ? "All changes saved" : ""}
+        </span>
+      </div>
+
+      {!data && !error && <p className="card mt-2 px-4 py-10 text-center text-ink-600">Loading the check sheet...</p>}
+
+      {data && data.checks.length === 0 && (
+        <p className="card mt-2 px-4 py-10 text-center text-ink-600">
+          There is no check sheet for this day. Checks are recorded from the day the app went live.
+        </p>
+      )}
+
+      {data && data.checks.length > 0 && visibleCount === 0 && (
+        <p className="card mt-2 px-4 py-10 text-center text-ink-600">
+          {show === "todo" ? "Nothing left to do for this selection." : "No lines match this selection."}
+        </p>
+      )}
+
+      {groups.map(([name, list]) => {
+        const isCollapsed = collapsed.has(name);
+        const complete = list.filter((c) => analysed.get(c.lineId)!.notDone.length === 0).length;
+        return (
+          <section key={name} className="card mt-2 overflow-hidden">
+            <button
+              type="button"
+              aria-expanded={!isCollapsed}
+              onClick={() => setCollapsed((prev) => toggle(prev, name))}
+              className="flex w-full items-center gap-3 bg-brand-50 px-4 py-2.5 text-left"
+            >
+              <ChevronDown
+                size={18}
+                strokeWidth={1.75}
+                className={`flex-none text-brand ${isCollapsed ? "-rotate-90" : ""}`}
+                aria-hidden
+              />
+              <h2 className="font-display text-[14px] font-bold text-ink-900">{name}</h2>
+              <span className="ml-auto text-[12px] text-ink-600">
+                {complete} of {list.length} lines complete
+              </span>
+            </button>
+            {!isCollapsed && (
+              <>
+                <div className={`hidden border-t border-ink-100 px-4 py-2 ${ROW_GRID}`} aria-hidden>
+                  <span className="caps">Stock movement</span>
+                  {STEPS.map((s) => (
+                    <span key={s} className="caps">
+                      {STEP_LABEL[s]}
+                    </span>
+                  ))}
+                  <span className="caps">Status</span>
+                  <span />
+                </div>
+                <ul className="border-t border-ink-100">
+                  {list.map((c) => (
+                    <CheckRow
+                      key={c.lineId}
+                      check={c}
+                      a={analysed.get(c.lineId)!}
+                      canEdit={canEdit}
+                      person={person}
+                      open={open.has(c.lineId)}
+                      onToggle={() => setOpen((prev) => toggle(prev, c.lineId))}
+                      onChange={(step, change) => onChange(c.lineId, step, change)}
+                    />
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }

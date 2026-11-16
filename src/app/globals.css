@@ -1,26 +1,165 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Agri Technovation brand tokens */
+@theme {
+  --color-brand: #006838;
+  --color-brand-50: #f2f8f4;
+  --color-brand-100: #e6f1eb;
+  --color-brand-800: #00542d;
+  --color-brand-900: #003d21;
+  --color-sea: #00816a;
+  --color-sea-100: #e0f0ec;
+  --color-sea-800: #005c4b;
+  --color-lime: #8dc63f;
+  --color-lime-100: #f0f7e2;
+  --color-lime-700: #6fa02f;
+  --color-ink-50: #f7f8f6;
+  --color-ink-100: #eceeec;
+  --color-ink-200: #d4d8d5;
+  --color-ink-400: #8a928d;
+  --color-ink-600: #4a5550;
+  --color-ink-800: #1e2b23;
+  --color-ink-900: #0f1f16;
+  --color-warn: #d98a00;
+  --color-danger: #b5372a;
+
+  --font-display: var(--font-montserrat), system-ui, sans-serif;
+  --font-body: var(--font-open-sans), system-ui, sans-serif;
+
+  --shadow-card: 0 2px 8px rgba(15, 31, 22, 0.06);
+  --shadow-lift: 0 8px 24px rgba(15, 31, 22, 0.08);
+  --shadow-modal: 0 16px 48px rgba(15, 31, 22, 0.12);
+
+  --ease-brand: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-ink-50);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--color-ink-800);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+@layer components {
+  .caps {
+    font-family: var(--font-display);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-600);
+  }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--color-ink-100);
+    border-radius: 8px;
+    box-shadow: var(--shadow-card);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 4px;
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 180ms var(--ease-brand), color 180ms var(--ease-brand),
+      border-color 180ms var(--ease-brand);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    background: var(--color-ink-200);
+    border-color: var(--color-ink-200);
+    color: var(--color-ink-400);
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: var(--color-brand);
+    color: #fff;
+    border: 1px solid var(--color-brand);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-sea);
+    border-color: var(--color-sea);
+  }
+  .btn-ghost {
+    background: #fff;
+    color: var(--color-brand);
+    border: 1px solid var(--color-ink-200);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--color-brand-50);
+    border-color: var(--color-brand);
+  }
+  .btn-icon {
+    width: 36px;
+    padding: 0;
+  }
+
+  .input {
+    height: 36px;
+    width: 100%;
+    padding: 0 12px;
+    background: #fff;
+    border: 1px solid var(--color-ink-200);
+    border-radius: 4px;
+    color: var(--color-ink-800);
+    font-size: 14px;
+    transition: border-color 180ms var(--ease-brand), box-shadow 180ms var(--ease-brand);
+  }
+  textarea.input {
+    height: auto;
+    padding: 8px 12px;
+    line-height: 1.4;
+  }
+  .input::placeholder {
+    color: var(--color-ink-400);
+  }
+  .input:focus {
+    outline: none;
+    border-color: var(--color-brand);
+    box-shadow: 0 0 0 3px rgba(0, 104, 56, 0.14);
+  }
+  .input:disabled {
+    background: var(--color-ink-50);
+    color: var(--color-ink-600);
+    cursor: not-allowed;
+  }
+
+  .check {
+    width: 20px;
+    height: 20px;
+    flex: none;
+    accent-color: var(--color-brand);
+    cursor: pointer;
+  }
+  .check:disabled {
+    cursor: not-allowed;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
 }

@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stock Control Room
 
-## Getting Started
+Daily document checks between physical stock movements and system stock, for the Wellington site.
+Replaces the shared Excel checklist so that every team works on one version and each day is kept on record.
 
-First, run the development server:
+## How it works
+
+- A **check day** covers documents from 06:00 the previous day to 06:00 on the day (South African time).
+- Each line has three checks:
+  1. **Physical count** - the responsible person counts the completed documents (due by the line's physical reporting time, 10:00 by default).
+  2. **DC received** - the data capturer confirms how many documents were handed over.
+  3. **Captured in system** - the data capturer records how many were captured (due by the system reporting time, 15:00 by default).
+- Ticking a check with no number counts as zero documents. Entering a number ticks the check.
+- Lines whose physical responsible person is `N/A` only have the capture check.
+- Today's sheet is editable by everyone. Previous days are read-only, except for an admin.
+
+## Pages
+
+| Page | Purpose |
+|---|---|
+| Daily checks (`/`) | The check sheet. Filter by person, category, to-do or exceptions; add comments per check. |
+| Exceptions (`/exceptions`) | Checks not done (by responsible and accountable person), count mismatches, documents not yet captured, plus the last 14 days. |
+| Admin (`/admin`) | Add, edit, duplicate or deactivate lines. Edits apply from today onwards; history keeps the details it was checked against. |
+
+## Data
+
+MongoDB database `stock_control_room`:
+
+- `lines` - the checklist lines (the columns of the Excel template).
+- `checks` - one record per line per day, with a copy of the line details for that day and the three checks.
+- `meta` - a marker so the starting lines are only loaded once.
+
+On first run against an empty database the app loads the 124 lines from the template (`src/lib/seed-lines.json`).
+
+## Configuration
+
+See `.env.example`. Set the same variables in Vercel under Project Settings > Environment Variables.
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `MONGODB_URI` | yes | Atlas connection string |
+| `MONGODB_DB` | no | Database name, defaults to `stock_control_room` |
+| `APP_ACCESS_CODE` | recommended | Shared code to open the app |
+| `ADMIN_ACCESS_CODE` | recommended | Code for the Admin page and for correcting previous days |
+
+Atlas must allow connections from Vercel (Network Access).
+
+## Development
+
+```bash
+cp .env.example .env.local
+```
+
+```bash
+npm install
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built with Next.js (App Router), Tailwind CSS and the official MongoDB driver.

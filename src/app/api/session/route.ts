@@ -15,10 +15,11 @@ import {
 
 export const dynamic = "force-dynamic";
 
-/** Who is signed in (or null). */
-export async function GET() {
+/** Who is signed in (or null). Also the regular check-in that keeps a session alive while the app is open. */
+export async function GET(req: Request) {
+  const tab = new URL(req.url).searchParams.get("tab");
   return withOpenDb(async (db) => {
-    const user = await currentUser(db);
+    const user = await currentUser(db, tab === "new" || tab === "known" ? tab : undefined);
     return json({ user: user ? toSessionUser(user) : null });
   });
 }
@@ -37,8 +38,12 @@ export async function POST(req: Request) {
     }
     const user = await users(db).findOne({ username });
     let ok = false;
-    if (user && user.active) ok = await verifyPassword(password, user.passwordHash);
+    if (user && (user.active || user.pending)) ok = await verifyPassword(password, user.passwordHash);
     else await fakeVerify();
+    // Only someone who knows the password is told that the account is still waiting.
+    if (ok && user && user.pending) {
+      return fail(403, "Your account is waiting for approval. Ruandre will let you know when you can sign in.", "pending");
+    }
     if (!ok || !user) {
       await recordFailure(db, username, address);
       // The same answer whether the username or the password was wrong.

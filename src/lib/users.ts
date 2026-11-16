@@ -1,5 +1,14 @@
 import { ObjectId, type Db } from "mongodb";
-import { endUserSessions, hashPassword, passwordProblem, usernameProblem, users, type UserDoc } from "./auth";
+import {
+  blocked,
+  bump,
+  endUserSessions,
+  hashPassword,
+  passwordProblem,
+  usernameProblem,
+  users,
+  type UserDoc,
+} from "./auth";
 import type { Role, UserAccount } from "./types";
 
 function toAccount(user: UserDoc): UserAccount {
@@ -11,6 +20,8 @@ function toAccount(user: UserDoc): UserAccount {
     person: user.person,
     mustChangePassword: user.mustChangePassword,
     active: user.active,
+    pending: !!user.pending,
+    createdAt: new Date(user.createdAt).toISOString(),
     lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
   };
 }
@@ -90,6 +101,13 @@ export async function updateUser(db: Db, id: string, input: Record<string, unkno
     if (self && role !== target.role) return { error: "You cannot change your own role", status: 400 };
     set.role = role;
   }
+  if (input.approve === true) {
+    if (!target.pending) return { error: "That account is not waiting for approval", status: 400 };
+    set.pending = false;
+    set.active = true;
+  } else if (target.pending) {
+    return { error: "Approve the account before changing it", status: 400 };
+  }
   if (input.active !== undefined) {
     if (typeof input.active !== "boolean") return { error: "Invalid details", status: 400 };
     if (self && !input.active) return { error: "You cannot deactivate your own account", status: 400 };
@@ -110,3 +128,65 @@ export async function updateUser(db: Db, id: string, input: Record<string, unkno
   if (endSessions) await endUserSessions(db, _id, self);
   return { account: toAccount(updated) };
 }
+
+// ---------- Signing up ----------
+
+const MAX_SIGNUPS_PER_ADDRESS = 5;
+const MAX_WAITING = 50;
+
+/**
+ * Someone creates their own account. It can do nothing until an admin approves it,
+ * and it is always an ordinary user: the role is never taken from the request.
+ */
+export async function signUp(
+  db: Db,
+  input: Record<string, unknown>,
+  address: string,
+): Promise<{ ok: true } | { error: string; status: number }> {
+  const username = typeof input.username === "string" ? input.username.trim().toLowerCase() : "";
+  const name = text(input.name, 80);
+  const problem =
+    (!name ? "Enter your name" : null) ?? usernameProblem(username) ?? passwordProblem(input.password, username);
+  if (problem) return { error: problem, status: 400 };
+
+  if (await blocked(db, `signup:${address}`, MAX_SIGNUPS_PER_ADDRESS)) {
+    return { error: "Too many sign-ups from here. Please wait 15 minutes and try again.", status: 429 };
+  }
+  if ((await users(db).countDocuments({ pending: true })) >= MAX_WAITING) {
+    return { error: "Too many sign-ups are waiting for approval. Please ask Ruandre to approve them first.", status: 429 };
+  }
+  await bump(db, `signup:${address}`);
+
+  const now = new Date();
+  try {
+    await users(db).insertOne({
+      _id: new ObjectId(),
+      username,
+      name: name!,
+      role: "user",
+      person: "",
+      passwordHash: await hashPassword(input.password as string),
+      mustChangePassword: false,
+      active: false,
+      pending: true,
+      createdAt: now,
+      updatedAt: now,
+      lastLoginAt: null,
+    });
+  } catch (err) {
+    if ((err as { code?: number }).code === 11000) {
+      return { error: "That username is already taken. Please choose another.", status: 409 };
+    }
+    throw err;
+  }
+  return { ok: true };
+}
+
+/** Rejecting a sign-up removes it, which also frees the username. Approved accounts are deactivated, not deleted. */
+export async function rejectSignUp(db: Db, id: string): Promise<{ ok: true } | { error: string; status: number }> {
+  if (!ObjectId.isValid(id)) return { error: "User not found", status: 404 };
+  const result = await users(db).deleteOne({ _id: new ObjectId(id), pending: true });
+  return result.deletedCount ? { ok: true } : { error: "That account is not waiting for approval", status: 400 };
+}
+
+export const countWaiting = (db: Db) => users(db).countDocuments({ pending: true });

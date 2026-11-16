@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api, SessionContext } from "@/lib/client";
+import { leaveTab, thisTab, touchTab } from "@/lib/tabs";
 import type { SessionUser } from "@/lib/types";
 import { LogoMark, Splash } from "./Brand";
 
@@ -24,23 +25,75 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const bare = BARE.includes(pathname);
   const [user, setUser] = useState<SessionUser | null>(null);
 
+  const [waiting, setWaiting] = useState(0);
+
   // Nothing is shown until the server confirms who is signed in.
   useEffect(() => {
     if (bare) return;
     let cancelled = false;
-    api<{ user: SessionUser | null }>("/api/session")
+    const tab = thisTab();
+    const toSignIn = () => {
+      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      window.location.href = `/login?next=${next}`;
+    };
+
+    api<{ user: SessionUser | null }>(`/api/session${tab ? `?tab=${tab.known ? "known" : "new"}` : ""}`)
       .then((res) => {
         if (cancelled) return;
-        const next = encodeURIComponent(window.location.pathname + window.location.search);
-        if (!res.user) window.location.href = `/login?next=${next}`;
-        else if (res.user.mustChangePassword) window.location.href = `/password?next=${next}`;
-        else setUser(res.user);
+        if (!res.user) toSignIn();
+        else if (res.user.mustChangePassword) {
+          window.location.href = `/password?next=${encodeURIComponent(window.location.pathname + window.location.search)}`;
+        } else setUser(res.user);
       })
       .catch(() => {});
+
+    // While the app is open it checks in regularly. That keeps the session alive, and
+    // notices straight away when it has been ended somewhere else.
+    if (tab) touchTab(tab.id);
+    const beat = window.setInterval(() => {
+      if (tab) touchTab(tab.id);
+      api<{ user: SessionUser | null }>("/api/session")
+        .then((res) => {
+          if (!cancelled && !res.user) toSignIn();
+        })
+        .catch(() => {});
+    }, 20000);
+
+    // When the last tab with the app closes, tell the server so the session ends there too.
+    const onHide = () => {
+      if (tab && !leaveTab(tab.id)) navigator.sendBeacon("/api/session/close");
+    };
+    const onShow = () => {
+      if (tab) touchTab(tab.id);
+    };
+    window.addEventListener("pagehide", onHide);
+    window.addEventListener("pageshow", onShow);
     return () => {
       cancelled = true;
+      window.clearInterval(beat);
+      window.removeEventListener("pagehide", onHide);
+      window.removeEventListener("pageshow", onShow);
     };
   }, [bare]);
+
+  // Admins see when someone has signed up and is waiting to be approved.
+  const isAdmin = user?.role === "admin";
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    const load = () =>
+      api<{ count: number }>("/api/users/pending")
+        .then((res) => !cancelled && setWaiting(res.count))
+        .catch(() => {});
+    load();
+    const timer = window.setInterval(load, 60000);
+    window.addEventListener("scr:users-changed", load);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("scr:users-changed", load);
+    };
+  }, [isAdmin, pathname]);
 
   if (bare) return <>{children}</>;
   if (!user) return <Splash />;
@@ -83,6 +136,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </>
                   ) : (
                     item.label
+                  )}
+                  {item.adminOnly && waiting > 0 && (
+                    <span
+                      className="ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-lime px-1 text-[10px] font-bold tracking-normal text-ink-900"
+                      title={`${waiting} waiting for approval`}
+                    >
+                      {waiting}
+                      <span className="sr-only"> waiting for approval</span>
+                    </span>
                   )}
                 </Link>
               );

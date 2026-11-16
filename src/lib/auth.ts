@@ -6,11 +6,21 @@ import type { Role, SessionUser } from "./types";
 
 /**
  * Sign-in is by individual account. A session is a random token held in a browser-session
- * cookie (it goes when the browser closes) and recorded on the server, where it expires
- * after 12 hours at most and is deleted on sign-out, so a copied cookie stops working.
+ * cookie and recorded on the server. The server, not the cookie, decides when it ends:
+ *  - on sign-out, immediately;
+ *  - when the last tab of the app is closed (the page tells the server as it goes);
+ *  - when nothing has been heard from the browser for 30 minutes (covers a crash, a
+ *    phone that killed the browser, or a computer put to sleep);
+ *  - after 12 hours, whatever happens.
+ * Browsers often keep "session" cookies when they restore tabs, so the cookie going
+ * away is never relied on.
  */
 export const COOKIE = "scr_session";
 export const SESSION_HOURS = 12;
+const IDLE_MS = 30 * 60 * 1000;
+/** After the page says it is closing, how long a reload of the same tab has to check in. */
+const CLOSING_GRACE_MS = 45 * 1000;
+const TOUCH_EVERY_MS = 15 * 1000;
 
 export interface UserDoc {
   _id: ObjectId;
@@ -22,6 +32,8 @@ export interface UserDoc {
   passwordHash: string;
   mustChangePassword: boolean;
   active: boolean;
+  /** Signed up by themselves and waiting for an admin to approve. Always inactive until approved. */
+  pending?: boolean;
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt: Date | null;
@@ -32,6 +44,10 @@ interface SessionDoc {
   userId: ObjectId;
   createdAt: Date;
   expiresAt: Date;
+  /** Last time the browser checked in. */
+  lastSeenAt?: Date;
+  /** Set when the last open tab reported that it was closing. */
+  closingAt?: Date | null;
 }
 
 interface ThrottleDoc {
@@ -121,7 +137,8 @@ export async function clientAddress(): Promise<string> {
   return forwarded.split(",")[0].trim() || "unknown";
 }
 
-async function blocked(db: Db, key: string, max: number): Promise<boolean> {
+/** Whether a counter (failed sign-ins, sign-ups, ...) has reached its limit for the current 15 minutes. */
+export async function blocked(db: Db, key: string, max: number): Promise<boolean> {
   const doc = await throttle(db).findOne({ _id: key });
   if (!doc) return false;
   if (doc.expiresAt.getTime() <= Date.now()) {
@@ -147,6 +164,12 @@ export async function recordFailure(db: Db, username: string, address: string): 
       throttle(db).updateOne({ _id: key }, { $inc: { count: 1 }, $setOnInsert: { expiresAt } }, { upsert: true }),
     ),
   );
+}
+
+/** Adds one to a counter that resets 15 minutes after its first count. */
+export async function bump(db: Db, key: string): Promise<void> {
+  const expiresAt = new Date(Date.now() + WINDOW_MS);
+  await throttle(db).updateOne({ _id: key }, { $inc: { count: 1 }, $setOnInsert: { expiresAt } }, { upsert: true });
 }
 
 export async function clearFailures(db: Db, username: string): Promise<void> {
@@ -177,6 +200,8 @@ export async function startSession(db: Db, user: UserDoc): Promise<void> {
     userId: user._id,
     createdAt: now,
     expiresAt: new Date(now.getTime() + SESSION_HOURS * 60 * 60 * 1000),
+    lastSeenAt: now,
+    closingAt: null,
   });
   await users(db).updateOne({ _id: user._id }, { $set: { lastLoginAt: now } });
   (await cookies()).set(COOKIE, token, {
@@ -187,18 +212,42 @@ export async function startSession(db: Db, user: UserDoc): Promise<void> {
   });
 }
 
-/** The signed-in user, or null. Checks the server-side session on every request. */
-export async function currentUser(db: Db): Promise<UserDoc | null> {
+/**
+ * The signed-in user, or null. Checks the server-side session on every request.
+ * `tab` is sent when a page first loads: "new" for a tab the app has not been open in
+ * before, "known" for a reload of a tab that was already using it.
+ */
+export async function currentUser(db: Db, tab?: "new" | "known"): Promise<UserDoc | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token || token.length > 200) return null;
   const session = await sessions(db).findOne({ _id: digest(token) });
   if (!session) return null;
-  if (session.expiresAt.getTime() <= Date.now()) {
+
+  const now = Date.now();
+  const lastSeen = (session.lastSeenAt ?? session.createdAt).getTime();
+  const closing = session.closingAt ? session.closingAt.getTime() : null;
+  const over =
+    session.expiresAt.getTime() <= now ||
+    now - lastSeen > IDLE_MS ||
+    // Every tab was closed. Only a quick reload of one of those tabs may carry on;
+    // a fresh tab or window (the browser was closed and opened again) has to sign in.
+    (closing !== null && (tab === "new" || now - closing > CLOSING_GRACE_MS));
+  if (over) {
     await sessions(db).deleteOne({ _id: session._id });
     return null;
   }
+  if (closing !== null || now - lastSeen > TOUCH_EVERY_MS) {
+    await sessions(db).updateOne({ _id: session._id }, { $set: { lastSeenAt: new Date(now), closingAt: null } });
+  }
   const user = await users(db).findOne({ _id: session.userId });
   return user && user.active ? user : null;
+}
+
+/** The last open tab is closing: the session ends unless that same tab checks back in straight away. */
+export async function markSessionClosing(db: Db): Promise<void> {
+  const token = (await cookies()).get(COOKIE)?.value;
+  if (!token || token.length > 200) return;
+  await sessions(db).updateOne({ _id: digest(token), closingAt: null }, { $set: { closingAt: new Date() } });
 }
 
 /** Ends the current session on the server and removes the cookie. */

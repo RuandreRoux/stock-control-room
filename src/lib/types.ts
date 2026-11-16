@@ -58,6 +58,9 @@ export interface SessionUser {
 /** A user account as shown on the Admin page (never includes the password). */
 export interface UserAccount extends SessionUser {
   active: boolean;
+  /** Signed up themselves and waiting for an admin to approve. */
+  pending: boolean;
+  createdAt: string;
   lastLoginAt: string | null;
 }
 

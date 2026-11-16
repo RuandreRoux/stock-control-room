@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, KeyRound, Pencil, Plus, X } from "lucide-react";
+import { AlertCircle, Check, KeyRound, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, useSessionUser } from "@/lib/client";
 import { formatDay, formatTime, sastDate } from "@/lib/time";
@@ -232,6 +232,8 @@ export function UsersAdmin({ people }: { people: string[] }) {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
 
+  const [busyId, setBusyId] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     try {
       setAccounts((await api<{ users: UserAccount[] }>("/api/users")).users);
@@ -239,7 +241,25 @@ export function UsersAdmin({ people }: { people: string[] }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load the users");
     }
+    // Lets the top bar refresh its "waiting for approval" count.
+    window.dispatchEvent(new Event("scr:users-changed"));
   }, []);
+
+  const decide = async (account: UserAccount, approve: boolean) => {
+    if (!approve && !window.confirm(`Reject the sign-up from ${account.name} (${account.username})? This removes it.`)) return;
+    setBusyId(account.id);
+    try {
+      if (approve) await api(`/api/users/${account.id}`, { method: "PATCH", body: JSON.stringify({ approve: true }) });
+      else await api(`/api/users/${account.id}`, { method: "DELETE" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update the sign-up");
+    }
+    setBusyId(null);
+    load();
+  };
+
+  const waiting = (accounts ?? []).filter((a) => a.pending);
+  const approved = (accounts ?? []).filter((a) => !a.pending);
   useEffect(() => {
     load();
   }, [load]);
@@ -254,8 +274,8 @@ export function UsersAdmin({ people }: { people: string[] }) {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-[13px] text-ink-600">
-          Everyone signs in with their own username and password. New users get a temporary password and choose their
-          own at first sign-in.
+          Everyone signs in with their own username and password. People can create their own account on the sign-in
+          screen, which you approve here, or you can add someone yourself with a temporary password.
         </p>
         <button type="button" className="btn btn-primary" onClick={() => setEditing({ mode: "new" })}>
           <Plus size={16} strokeWidth={1.75} aria-hidden />
@@ -268,6 +288,54 @@ export function UsersAdmin({ people }: { people: string[] }) {
           <AlertCircle size={16} strokeWidth={1.75} className="flex-none text-danger" aria-hidden />
           {error}
         </div>
+      )}
+
+      {waiting.length > 0 && (
+        <section className="mt-3 overflow-hidden rounded-lg border border-warn/60 bg-warn/10" aria-label="Waiting for approval">
+          <header className="px-4 py-3">
+            <h2 className="font-display text-base font-bold text-ink-900">
+              Waiting for Approval ({waiting.length})
+            </h2>
+            <p className="text-[12px] text-ink-800">
+              These people created their own account. Approve only people you recognise; they cannot sign in until
+              you do.
+            </p>
+          </header>
+          <ul className="border-t border-warn/40 bg-white">
+            {waiting.map((account) => (
+              <li
+                key={account.id}
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-ink-100 px-4 py-3 first:border-t-0"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-ink-900">{account.name}</p>
+                  <p className="text-[12px] text-ink-600">
+                    Username <strong className="text-ink-800">{account.username}</strong> - signed up{" "}
+                    {lastSeen(account.createdAt)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={busyId === account.id}
+                  onClick={() => decide(account, false)}
+                >
+                  <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+                  Reject
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={busyId === account.id}
+                  onClick={() => decide(account, true)}
+                >
+                  <Check size={16} strokeWidth={2} aria-hidden />
+                  Approve
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <section className="card mt-3 overflow-hidden">
@@ -286,7 +354,7 @@ export function UsersAdmin({ people }: { people: string[] }) {
                 </tr>
               </thead>
               <tbody>
-                {accounts.map((account) => (
+                {approved.map((account) => (
                   <tr key={account.id} className={`border-t border-ink-100 ${account.active ? "" : "bg-ink-50 text-ink-600"}`}>
                     <td className="px-4 py-2.5 font-semibold text-ink-900">
                       {account.name}

@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BrandBackdrop, Logo } from "@/components/Brand";
 import { PasswordField } from "@/components/PasswordField";
-import { Check, Circle } from "lucide-react";
+import { PasswordRules } from "@/components/PasswordRules";
 import { api } from "@/lib/client";
 import { passwordRules } from "@/lib/password-rules";
 import type { SessionUser } from "@/lib/types";
@@ -71,18 +71,7 @@ export default function PasswordPage() {
             autoFocus
           />
           <PasswordField label="New password" value={next} onChange={setNext} autoComplete="new-password" />
-          <ul className="grid gap-x-3 gap-y-1 rounded-lg bg-ink-50 p-3 text-[12px] sm:grid-cols-2" aria-label="Password rules">
-            {rules.map((rule) => (
-              <li key={rule.label} className={`flex items-start gap-1.5 ${rule.ok ? "text-ink-800" : "text-ink-600"}`}>
-                {rule.ok ? (
-                  <Check size={14} strokeWidth={2.25} className="mt-0.5 flex-none text-brand" aria-label="Met" />
-                ) : (
-                  <Circle size={14} strokeWidth={1.75} className="mt-0.5 flex-none text-ink-400" aria-label="Not yet met" />
-                )}
-                <span>{rule.label}</span>
-              </li>
-            ))}
-          </ul>
+          <PasswordRules password={next} username={user?.username ?? ""} />
           <PasswordField label="New password again" value={again} onChange={setAgain} autoComplete="new-password" error={mismatch} />
           {error && (
             <p role="alert" className="text-[13px] font-semibold text-danger">

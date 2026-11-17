@@ -172,6 +172,16 @@ export interface StepPatch {
   comment?: string;
 }
 
+/** Records (or clears, with empty text) why a line's counts did not match. */
+export async function setReason(db: Db, date: string, lineId: string, text: string, by: string): Promise<DayCheck | null> {
+  const value = text ? { text, by, at: new Date().toISOString() } : null;
+  const updated = await checks(db).findOneAndUpdate({ date, lineId }, { $set: { reason: value } }, { returnDocument: "after" });
+  if (!updated) return null;
+  const { _id: _unused, ...check } = updated;
+  void _unused;
+  return check;
+}
+
 export async function updateStep(
   db: Db,
   date: string,

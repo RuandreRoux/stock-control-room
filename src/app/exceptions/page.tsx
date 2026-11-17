@@ -4,6 +4,7 @@ import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, Clock } from "lu
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Loading } from "@/components/Brand";
+import { ReasonCell } from "@/components/ReasonCell";
 import { SheetPicker } from "@/components/SheetPicker";
 import { SERIES, TrendChart, type SeriesKey } from "@/components/TrendChart";
 import { api, useCheckDate, useDay } from "@/lib/client";
@@ -79,7 +80,7 @@ export default function ExceptionsPage() {
   // The dashboard is about the sheet due today: what was missing at 10:00 and what is still open.
   const [home] = useState(() => sheetsInPlay().due);
   const { date, today, latest, setDate } = useCheckDate(home);
-  const { data, error } = useDay(date);
+  const { data, error, reload } = useDay(date);
   const [tab, setTab] = useState<Tab>("notDone");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   // Exception totals for recent working days, newest first: the graph and the table below share it.
@@ -446,7 +447,7 @@ export default function ExceptionsPage() {
                   <Empty>No mismatches between the responsible and DC counts.</Empty>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1400px] text-[13px]">
+                    <table className="w-full min-w-[1640px] text-[13px]">
                       <thead className="bg-ink-50">
                         <tr>
                           <th colSpan={3} />
@@ -456,7 +457,7 @@ export default function ExceptionsPage() {
                           <th colSpan={4} className={group}>
                             DC received
                           </th>
-                          <th />
+                          <th colSpan={2} />
                         </tr>
                         <tr>
                           <th className={th}>Stock movement</th>
@@ -471,6 +472,7 @@ export default function ExceptionsPage() {
                           <th className={th}>Accountable</th>
                           <th className={`${th} text-right`}>Received</th>
                           <th className={`${th} border-l border-ink-200 text-right`}>Difference</th>
+                          <th className={`${th} border-l border-ink-200`}>Reason</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -495,6 +497,9 @@ export default function ExceptionsPage() {
                             <td className={num}>{received}</td>
                             <td className={`${num} border-l border-ink-100 font-semibold text-ink-900`}>
                               {diff > 0 ? `+${diff}` : diff}
+                            </td>
+                            <td className={`${td} border-l border-ink-100`}>
+                              <ReasonCell key={check.reason?.at ?? "none"} check={check} onSaved={reload} />
                             </td>
                           </tr>
                         ))}

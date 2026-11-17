@@ -41,6 +41,8 @@ export interface DayCheck {
   line: LineFields & { order: number };
   physical: StepEntry;
   received: StepEntry;
+  /** Why the counts did not match, written on the Exceptions Dashboard. */
+  reason?: { text: string; by: string | null; at: string } | null;
 }
 
 export type Role = "user" | "admin";

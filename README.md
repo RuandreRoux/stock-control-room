@@ -42,6 +42,7 @@ On first run against an empty database the app loads the 124 lines from the temp
 
 - Everyone signs in with their own username and password. There are no shared codes.
 - **Roles:** a *user* can do the daily checks and see the dashboard. An *admin* can also edit lines, manage users and correct previous days.
+- **Mismatch reasons:** on the Exceptions Dashboard, each count mismatch has a Reason column; the reason is saved with that sheet (with who wrote it and when) and also shows in the line's details on Daily Checks.
 - **Accounts:** people create their own account on the sign-in screen (name, username, password). It can do nothing until an admin approves it on the Admin page (Users tab); a rejected sign-up is removed. A sign-up is always an ordinary user. Admins can also add someone directly with a temporary password, which must be replaced at first sign-in.
 - Admins can reset a password or deactivate an account; both sign that person out at once.
 - **Passwords** are stored only as salted scrypt hashes. A new password needs at least 8 characters with an upper-case letter, a lower-case letter, a number and a special character.

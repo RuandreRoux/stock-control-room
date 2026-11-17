@@ -158,7 +158,7 @@ export function CheckRow({
   onChange: (step: StepKey, change: StepChange) => void;
 }) {
   const { line } = check;
-  const comments = STEPS.filter((s) => check[s].comment).length;
+  const comments = STEPS.filter((s) => check[s].comment).length + (check.reason ? 1 : 0);
 
   return (
     <li className="border-t border-ink-100 px-4 py-3 first:border-t-0">
@@ -300,6 +300,12 @@ export function CheckRow({
               </>
             )}
           </p>
+          {check.reason && (
+            <p className="mt-2 rounded-sm border-l-2 border-danger bg-white px-3 py-2 text-[13px] text-ink-900">
+              <span className="font-semibold">Reason for the mismatch:</span> {check.reason.text}
+              <span className="text-ink-600"> ({check.reason.by ?? "someone"})</span>
+            </p>
+          )}
           <div className="mt-2 grid gap-3 md:grid-cols-2">
             {STEPS.filter((step) => a.steps[step].applicable).map((step) => {
               const entry = check[step];

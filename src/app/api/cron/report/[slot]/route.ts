@@ -18,7 +18,7 @@ function authorised(req: Request): boolean {
 }
 
 /**
- * Called by the Vercel scheduler at 10:00, 15:00 and 18:00 (SAST) on weekdays. Posts the
+ * Called by the GitHub Actions schedule shortly after 10:00, 15:00 and 18:00 (SAST) on weekdays. Posts the
  * report to the Teams chat. Each report goes out at most once per day, only on working
  * days, and only within two hours of its time, so calling this address early, late or
  * repeatedly cannot produce extra or misleading reports.
@@ -37,10 +37,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ slot: st
     const teams = await teamsStatus(db);
     if (!teams.on || !teams.reports) return json({ sent: false, reason: "Teams reports are off" });
 
-    const marker = db.collection<{ _id: string; at: Date }>("meta");
+    const marker = db.collection<{ _id: string; at: Date; source: string }>("meta");
     const id = `report:${today}:${slot}`;
+    // Who asked, so the Admin page can show when and how each report went out.
+    const source = new URL(req.url).searchParams.get("source") === "github" ? "GitHub" : "Other";
     try {
-      await marker.insertOne({ _id: id, at: new Date() });
+      await marker.insertOne({ _id: id, at: new Date(), source });
     } catch (err) {
       if ((err as { code?: number }).code === 11000) return json({ sent: false, reason: "Already sent" });
       throw err;

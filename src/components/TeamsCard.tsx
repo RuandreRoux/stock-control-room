@@ -1,15 +1,17 @@
 "use client";
 
-import { MessagesSquare } from "lucide-react";
+import { Check, Clock, MessagesSquare } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
-import { formatDay, latestWorkingDay, sastDate, sheetsInPlay } from "@/lib/time";
+import { deadlineMs, formatDay, formatTime, isWorkingDay, latestWorkingDay, sastDate, sheetsInPlay } from "@/lib/time";
 
 interface Status {
   on: boolean;
   target: string | null;
   updatedBy: string | null;
   reports: boolean;
+  /** Today's scheduled reports that went out. */
+  log?: { slot: string; at: string; source: string }[];
 }
 
 const STEPS = [
@@ -155,6 +157,32 @@ export function TeamsCard() {
               </span>
             </span>
           </label>
+          {status.reports && isWorkingDay(sastDate()) && (
+            <ul className="w-full space-y-0.5 text-[12px] text-ink-800" aria-label="Today's reports">
+              {(["10", "15", "18"] as const).map((slot) => {
+                const sent = status.log?.find((l) => l.slot === slot);
+                const dueAt = deadlineMs(sastDate(), `${slot}:00`);
+                const late = sent ? Math.round((new Date(sent.at).getTime() - dueAt) / 60000) : 0;
+                return (
+                  <li key={slot} className="flex items-center gap-1.5">
+                    {sent ? (
+                      <Check size={14} strokeWidth={2.25} className="flex-none text-brand" aria-hidden />
+                    ) : (
+                      <Clock size={14} strokeWidth={1.75} className="flex-none text-ink-400" aria-hidden />
+                    )}
+                    <span>
+                      {slot}:00 report:{" "}
+                      {sent
+                        ? `sent at ${formatTime(sent.at)} by ${sent.source}${late > 0 ? ` (${late} min after ${slot}:00)` : ""}`
+                        : Date.now() < dueAt
+                          ? "due later today"
+                          : "not sent yet"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
               <span className="caps mb-1 block">Report for sheet</span>

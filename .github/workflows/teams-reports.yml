@@ -1,0 +1,49 @@
+# Scheduler for the daily Teams reports (10:00, 15:00 and 18:00 South African time).
+# GitHub can run scheduled jobs a few minutes late, especially exactly on the hour, so it
+# tries at 2, 7 and 15 minutes past each report time. The app sends each report only once
+# per day, so the first try that gets through sends it and the others are ignored.
+# Times are UTC: 08:xx = 10:xx, 13:xx = 15:xx, 16:xx = 18:xx South African time.
+name: Teams reports
+
+on:
+  schedule:
+    - cron: "2,7,15 8 * * 1-5"
+    - cron: "2,7,15 13 * * 1-5"
+    - cron: "2,7,15 16 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "Which report (only sent within two hours of its time, once per day)"
+        required: true
+        default: "10"
+        type: choice
+        options: ["10", "15", "18"]
+
+permissions: {}
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ask the app to post the report
+        env:
+          APP_URL: ${{ vars.APP_URL || 'https://stock-control-room.vercel.app' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SLOT: ${{ inputs.slot }}
+        run: |
+          if [ -z "$SLOT" ]; then
+            hour=$(TZ=Africa/Johannesburg date +%H)
+            case "$hour" in
+              10|11) SLOT=10 ;;
+              15|16) SLOT=15 ;;
+              18|19) SLOT=18 ;;
+              *) echo "No report is due at ${hour}:xx South African time"; exit 0 ;;
+            esac
+          fi
+          echo "Asking for the ${SLOT}:00 report at $(TZ=Africa/Johannesburg date '+%H:%M:%S') South African time"
+          auth=()
+          if [ -n "$CRON_SECRET" ]; then auth=(-H "Authorization: Bearer $CRON_SECRET"); fi
+          curl --fail-with-body --silent --show-error --max-time 60 "${auth[@]}" \
+            "$APP_URL/api/cron/report/$SLOT?source=github"
+          echo

@@ -80,9 +80,10 @@ An admin can also have new sign-ups posted to a Microsoft Teams channel or chat 
 
 When Teams alerts are set up, the app also posts a report to the same chat at 10:00, 15:00 and 18:00 (SAST) on working days, about the sheet due that day: checks done and not done (grouped by accountable, then responsible person) and any count mismatches, with a link to the dashboard. Admins can switch the reports off, or post one straight away for any sheet they choose, on Admin > Users.
 
-- The schedule is in `vercel.json` (Vercel Cron, times in UTC: 08:00, 13:00 and 16:00).
+- The schedule is a GitHub Actions workflow (`.github/workflows/teams-reports.yml`). It tries at 2, 7 and 15 minutes past each report time, because GitHub can run scheduled jobs a few minutes late; the first try that gets through sends the report. The Admin page shows when each of today's reports went out.
+- The GitHub workflow can also be run by hand (Actions > Teams reports > Run workflow).
 - Each report goes out at most once per day, only on working days and only within two hours of its time.
-- Optional: set `CRON_SECRET` in Vercel so only Vercel's scheduler can trigger the reports.
+- Optional: set `CRON_SECRET` in Vercel and the same value as a GitHub Actions secret called `CRON_SECRET`, so only the schedule can trigger the reports.
 
 ## Configuration
 
@@ -92,7 +93,7 @@ See `.env.example`. Set the same variables in Vercel under Project Settings > En
 |---|---|---|
 | `MONGODB_URI` | yes | Atlas connection string |
 | `MONGODB_DB` | no | Database name, defaults to `stock_control_room` |
-| `CRON_SECRET` | recommended | Any long random text; only Vercel's scheduler can then trigger the daily reports |
+| `CRON_SECRET` | recommended | Any long random text; set the same value as a GitHub Actions secret so only the schedule can trigger the daily reports |
 
 Atlas must allow connections from Vercel (Network Access).
 

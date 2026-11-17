@@ -1,10 +1,20 @@
 import { fail, json, readBody, sameOrigin, withDb } from "@/lib/api";
 import { removeTeams, saveTeams, setReports, teamsStatus, webhookProblem } from "@/lib/teams";
+import { sastDate } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return withDb("admin", async (db) => json(await teamsStatus(db)));
+  return withDb("admin", async (db) => {
+    // Today's scheduled reports: when each went out and which scheduler sent it.
+    const today = sastDate();
+    const sent = await db
+      .collection<{ _id: string; at: Date; source?: string }>("meta")
+      .find({ _id: { $in: ["10", "15", "18"].map((slot) => `report:${today}:${slot}`) } })
+      .toArray();
+    const log = sent.map((m) => ({ slot: m._id.split(":").pop(), at: m.at.toISOString(), source: m.source ?? "Other" }));
+    return json({ ...(await teamsStatus(db)), log });
+  });
 }
 
 /** Save the Teams workflow address. */

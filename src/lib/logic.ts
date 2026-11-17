@@ -9,7 +9,7 @@ export const STEPS: StepKey[] = ["physical", "received"];
 
 export const STEP_LABEL: Record<StepKey, string> = {
   physical: "Physical count",
-  received: "DC received",
+  received: "System count (DC)",
 };
 
 export function isNA(value: string | null | undefined): boolean {

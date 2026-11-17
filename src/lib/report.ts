@@ -97,7 +97,7 @@ export async function buildReport(
     blocks.push(heading("Checks not done"));
     // One table with the same columns throughout, so the numbers line up:
     // the accountable person as a bold row with their totals, their responsible people indented below.
-    const NUM = "96px";
+    const NUM = "112px";
     const n = (v: number) => (v ? String(v) : "");
     const row = (name: string, counts: string, dc: string, opts: { bold?: boolean; subtle?: boolean; indent?: boolean } = {}) => ({
       type: "ColumnSet",
@@ -116,7 +116,7 @@ export async function buildReport(
         })),
       ],
     });
-    blocks.push(row("Not done by", "Physical count", "System count", { subtle: true }));
+    blocks.push(row("Not done by", "Physical count", "System count (DC)", { subtle: true }));
     for (const acc of accountables.slice(0, MAX_ROWS)) {
       const counts = acc.people.reduce((t, [, p]) => t + p.count, 0);
       const dc = acc.people.reduce((t, [, p]) => t + p.dc, 0);
@@ -132,7 +132,7 @@ export async function buildReport(
     }
     blocks.push({
       type: "TextBlock",
-      text: "Physical count: physical document counts not done. System count: documents the data capturer has not confirmed as received.",
+      text: "Physical count: physical document counts not done. System count (DC): documents the data capturer has not confirmed as received.",
       isSubtle: true,
       size: "Small",
       wrap: true,

@@ -455,7 +455,7 @@ export default function ExceptionsPage() {
                             Physical count
                           </th>
                           <th colSpan={4} className={group}>
-                            DC received
+                            System count (DC)
                           </th>
                           <th colSpan={2} />
                         </tr>

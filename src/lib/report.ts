@@ -95,24 +95,49 @@ export async function buildReport(
 
   if (accountables.length) {
     blocks.push(heading("Checks not done"));
-    for (const acc of accountables.slice(0, MAX_ROWS)) {
-      blocks.push(
-        { type: "TextBlock", text: `${cardText(acc.name, 80)} (accountable): ${acc.total} not done`, weight: "Bolder", wrap: true, spacing: "Medium" },
+    // One table with the same columns throughout, so the numbers line up:
+    // the accountable person as a bold row with their totals, their responsible people indented below.
+    const NUM = "72px";
+    const n = (v: number) => (v ? String(v) : "");
+    const row = (name: string, counts: string, dc: string, opts: { bold?: boolean; subtle?: boolean; indent?: boolean } = {}) => ({
+      type: "ColumnSet",
+      spacing: "None",
+      columns: [
+        ...(opts.indent ? [{ type: "Column", width: "16px", items: [] }] : []),
         {
-          type: "FactSet",
-          spacing: "Small",
-          facts: acc.people.map(([person, n]) => ({
-            title: cardText(person, 60),
-            value: [n.count ? plural(n.count, "count", "counts") : "", n.dc ? plural(n.dc, "DC confirmation", "DC confirmations") : ""]
-              .filter(Boolean)
-              .join(", "),
-          })),
+          type: "Column",
+          width: "stretch",
+          items: [{ type: "TextBlock", text: name, wrap: true, weight: opts.bold ? "Bolder" : "Default", isSubtle: !!opts.subtle, size: opts.subtle ? "Small" : "Default" }],
         },
-      );
+        ...[counts, dc].map((value) => ({
+          type: "Column",
+          width: NUM,
+          items: [{ type: "TextBlock", text: value, horizontalAlignment: "Right", weight: opts.bold ? "Bolder" : "Default", isSubtle: !!opts.subtle, size: opts.subtle ? "Small" : "Default" }],
+        })),
+      ],
+    });
+    blocks.push(row("Not done by", "Counts", "DC", { subtle: true }));
+    for (const acc of accountables.slice(0, MAX_ROWS)) {
+      const counts = acc.people.reduce((t, [, p]) => t + p.count, 0);
+      const dc = acc.people.reduce((t, [, p]) => t + p.dc, 0);
+      blocks.push({
+        ...row(`${cardText(acc.name, 60)} (accountable)`, n(counts), n(dc), { bold: true }),
+        spacing: "Medium",
+        separator: true,
+      });
+      for (const [person, p] of acc.people) blocks.push(row(cardText(person, 60), n(p.count), n(p.dc), { indent: true }));
     }
     if (accountables.length > MAX_ROWS) {
       blocks.push({ type: "TextBlock", text: `...and ${accountables.length - MAX_ROWS} more on the dashboard`, isSubtle: true, wrap: true });
     }
+    blocks.push({
+      type: "TextBlock",
+      text: "Counts: physical document counts not done. DC: documents the data capturer has not confirmed as received.",
+      isSubtle: true,
+      size: "Small",
+      wrap: true,
+      spacing: "Small",
+    });
   }
 
   if (summary.mismatches) {

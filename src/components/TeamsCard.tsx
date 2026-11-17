@@ -3,6 +3,7 @@
 import { MessagesSquare } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
+import { formatDay, latestWorkingDay, sastDate, sheetsInPlay } from "@/lib/time";
 
 interface Status {
   on: boolean;
@@ -26,6 +27,8 @@ export function TeamsCard() {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
+  // Which sheet "Send report now" covers: the one due today unless an admin picks another.
+  const [reportDate, setReportDate] = useState(() => sheetsInPlay().due);
 
   const load = useCallback(async () => {
     try {
@@ -97,8 +100,8 @@ export function TeamsCard() {
     setBusy(true);
     setMessage(null);
     try {
-      await api("/api/teams/report", { method: "POST" });
-      setMessage({ tone: "ok", text: "Today's report has been posted to Teams." });
+      await api("/api/teams/report", { method: "POST", body: JSON.stringify({ date: reportDate }) });
+      setMessage({ tone: "ok", text: `The report for the ${formatDay(reportDate)} sheet has been posted to Teams.` });
     } catch (err) {
       setMessage({ tone: "error", text: err instanceof Error ? err.message : "The report could not be posted." });
     }
@@ -147,14 +150,26 @@ export function TeamsCard() {
             <span>
               <span className="block font-semibold text-ink-900">Daily reports to Teams</span>
               <span className="text-[12px] text-ink-600">
-                At 10:00, 15:00 and 18:00 on working days: checks done and not done (by accountable and responsible
-                person) and any count mismatches.
+                At 10:00, 15:00 and 18:00 on working days, about the sheet due that day: checks done and not done (by
+                accountable and responsible person) and the number of count mismatches.
               </span>
             </span>
           </label>
-          <button type="button" className="btn btn-ghost" disabled={busy} onClick={reportNow}>
-            Send report now
-          </button>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="block">
+              <span className="caps mb-1 block">Report for sheet</span>
+              <input
+                type="date"
+                className="input w-[160px]"
+                value={reportDate}
+                max={latestWorkingDay(sastDate())}
+                onChange={(e) => e.target.value && setReportDate(e.target.value)}
+              />
+            </label>
+            <button type="button" className="btn btn-ghost" disabled={busy || !reportDate} onClick={reportNow}>
+              Send report now
+            </button>
+          </div>
         </div>
       )}
 

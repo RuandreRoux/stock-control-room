@@ -78,7 +78,7 @@ An admin can also have new sign-ups posted to a Microsoft Teams channel or chat 
 
 ### Daily Teams reports
 
-When Teams alerts are set up, the app also posts a report to the same chat at 10:00, 15:00 and 18:00 (SAST) on working days, about the sheet due that day: checks done and not done (grouped by accountable, then responsible person) and any count mismatches, with a link to the dashboard. Admins can switch the reports off, or post one straight away, on Admin > Users.
+When Teams alerts are set up, the app also posts a report to the same chat at 10:00, 15:00 and 18:00 (SAST) on working days, about the sheet due that day: checks done and not done (grouped by accountable, then responsible person) and any count mismatches, with a link to the dashboard. Admins can switch the reports off, or post one straight away for any sheet they choose, on Admin > Users.
 
 - The schedule is in `vercel.json` (Vercel Cron, times in UTC: 08:00, 13:00 and 16:00).
 - Each report goes out at most once per day, only on working days and only within two hours of its time.

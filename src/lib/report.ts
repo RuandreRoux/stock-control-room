@@ -2,7 +2,7 @@ import type { Db } from "mongodb";
 import { getDay } from "./data";
 import { analyse, stepInfo, summarise } from "./logic";
 import { cardText, type TeamsMessage } from "./teams";
-import { formatDay, formatTime, isWorkingDay, sastDate, sheetsInPlay, windowLabel } from "./time";
+import { dueDay, formatDay, formatTime, isWorkingDay, sastDate, sheetsInPlay, windowLabel } from "./time";
 
 /** The scheduled report times (SAST). */
 export const REPORT_SLOTS = {
@@ -40,11 +40,19 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
  * still owes checks (by accountable, then responsible person). Mismatches are counted,
  * with a pointer to the dashboard for the details.
  */
-export async function buildReport(db: Db, title: string, note?: string): Promise<TeamsMessage | null> {
+export async function buildReport(
+  db: Db,
+  title: string,
+  note?: string,
+  /** A particular sheet, chosen by an admin. Without it: the sheet due today. */
+  sheet?: string,
+): Promise<TeamsMessage | null> {
   const today = sastDate();
-  if (!isWorkingDay(today)) return null;
+  if (!sheet && !isWorkingDay(today)) return null;
   const now = Date.now();
-  const { current, due } = sheetsInPlay(now);
+  const inPlay = sheetsInPlay(now);
+  const current = inPlay.current;
+  const due = sheet ?? inPlay.due;
   const checks = await getDay(db, due, today);
   const summary = summarise(due, checks, now);
   const done = summary.totalChecks - summary.notDone;
@@ -117,7 +125,8 @@ export async function buildReport(db: Db, title: string, note?: string): Promise
   }
 
   const time = formatTime(new Date(now).toISOString());
-  const todays = current !== due ? summarise(current, await getDay(db, current, today), now) : null;
+  // How far today's sheet has got, only when reporting on the sheet due today.
+  const todays = due === inPlay.due && current !== due ? summarise(current, await getDay(db, current, today), now) : null;
   const allClear = summary.notDone === 0 && summary.mismatches === 0;
 
   return {
@@ -126,7 +135,9 @@ export async function buildReport(db: Db, title: string, note?: string): Promise
     lines: [],
     blocks,
     note: [
-      allClear ? "All checks are done and every count matches." : (note ?? "Counts for this sheet were due at 10:00 today."),
+      allClear
+        ? "All checks are done and every count matches."
+        : (note ?? (due === inPlay.due ? "Counts for this sheet were due at 10:00 today." : `Counts for this sheet were due ${formatDay(dueDay(due), false)} 10:00.`)),
       todays ? `${formatDay(current, false)} sheet: ${todays.totalChecks - todays.notDone} of ${todays.totalChecks} filled in so far.` : "",
       `As at ${time}.`,
     ]

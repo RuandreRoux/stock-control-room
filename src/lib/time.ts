@@ -124,11 +124,11 @@ export function latestWorkingDay(date: string): string {
 }
 
 /**
- * The business window a check day covers: from 06:00 on the previous working day to
- * 06:00 on the day. Monday therefore covers Friday 06:00 to Monday 06:00.
+ * The business window a check day covers: from 06:00 on the previous working day until
+ * 05:59 on the day. Monday therefore covers Friday 06:00 until Monday 05:59.
  */
 export function windowLabel(date: string): string {
-  return `06:00 ${formatDay(previousWorkingDay(date), false)} to 06:00 ${formatDay(date, false)}`;
+  return `06:00 ${formatDay(previousWorkingDay(date), false)} until 05:59 ${formatDay(date, false)}`;
 }
 
 /** HH:MM (SAST) of an ISO timestamp. */

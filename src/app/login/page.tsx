@@ -11,9 +11,8 @@ import { passwordRules } from "@/lib/password-rules";
 import type { SessionUser } from "@/lib/types";
 
 const FACTS = [
-  { value: "06:00", label: "Business day starts" },
+  { value: "06:00 - 05:59", label: "Documents from 06:00 the previous day until 05:59 today" },
   { value: "10:00", label: "Document counts due" },
-  { value: "Mon-Fri", label: "Working days" },
 ];
 
 /** Only ever return to a page inside this app. */
@@ -87,7 +86,7 @@ export default function LoginPage() {
           <p className="mt-4 max-w-md text-[16px] leading-[1.6] text-white/90">
             Every document counted by the stock team and confirmed by the data capturers, every working day.
           </p>
-          <dl className="mt-8 hidden max-w-md grid-cols-3 sm:grid">
+          <dl className="mt-8 hidden max-w-lg grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] sm:grid">
             {FACTS.map((fact, i) => (
               <div key={fact.label} className={i ? "border-l border-white/20 pl-6" : "pr-6"}>
                 <dt className="sr-only">{fact.label}</dt>

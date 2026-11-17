@@ -5,7 +5,7 @@ Replaces the shared Excel checklist so that every team works on one version and 
 
 ## How it works
 
-- A **check day** covers documents from 06:00 on the previous working day to 06:00 on the day (South African time). Monday therefore covers Friday 06:00 to Monday 06:00.
+- A **check day** covers documents from 06:00 on the previous working day until 05:59 on the day (South African time). Monday therefore covers Friday 06:00 until Monday 05:59.
 - Checks run Monday to Friday. Weekends and South African public holidays have no sheet (see `src/lib/time.ts`; once-off declared holidays such as election days are not included).
 - Each line has two checks, both due by the line's physical reporting time (10:00 by default):
   1. **Physical count** - the responsible person counts the completed documents.

@@ -120,16 +120,34 @@ export async function getDay(db: Db, date: string, today: string): Promise<DayCh
     physical: emptyStep(),
     received: emptyStep(),
   }));
-  await checks(db).bulkWrite(
-    fresh.map((c) => ({
-      updateOne: {
-        filter: { date: c.date, lineId: c.lineId },
-        update: { $setOnInsert: { line: c.line, physical: c.physical, received: c.received } },
-        upsert: true,
-      },
-    })),
-    { ordered: false },
-  );
+  // When someone else opens the same day at the same moment, some rows clash with the ones
+  // they just created (a duplicate-key error). Those already exist, so only the rows still
+  // missing are written again, until every row is in place.
+  let pending = fresh;
+  for (let attempt = 1; pending.length > 0; attempt++) {
+    try {
+      await checks(db).bulkWrite(
+        pending.map((c) => ({
+          updateOne: {
+            filter: { date: c.date, lineId: c.lineId },
+            update: { $setOnInsert: { line: c.line, physical: c.physical, received: c.received } },
+            upsert: true,
+          },
+        })),
+        { ordered: false },
+      );
+      break;
+    } catch (err) {
+      const writeErrors = (err as { writeErrors?: { code?: number }[] | { code?: number } }).writeErrors;
+      const list = Array.isArray(writeErrors) ? writeErrors : writeErrors ? [writeErrors] : [];
+      const clash = list.length > 0 && list.every((e) => e.code === 11000);
+      if (!clash || attempt >= 5) throw err;
+      const present = new Set(
+        (await checks(db).find({ date }, { projection: { _id: 0, lineId: 1 } }).toArray()).map((c) => c.lineId),
+      );
+      pending = pending.filter((c) => !present.has(c.lineId));
+    }
+  }
   // Re-read so that two people opening the day at the same moment see the same thing.
   const all = await checks(db).find({ date }, { projection: { _id: 0 } }).toArray();
   return sortChecks(all);

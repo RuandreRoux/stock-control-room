@@ -1,5 +1,5 @@
 import { fail, json, readBody, sameOrigin, withDb } from "@/lib/api";
-import { removeTeams, saveTeams, teamsStatus, webhookProblem } from "@/lib/teams";
+import { removeTeams, saveTeams, setReports, teamsStatus, webhookProblem } from "@/lib/teams";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +29,17 @@ export async function DELETE(req: Request) {
   if (!sameOrigin(req)) return fail(403, "Invalid request");
   return withDb("admin", async (db) => {
     await removeTeams(db);
+    return json(await teamsStatus(db));
+  });
+}
+
+/** Turn the scheduled reports on or off. */
+export async function PATCH(req: Request) {
+  const body = await readBody(req);
+  if (!body || typeof body.reports !== "boolean") return fail(400, "Invalid request");
+  return withDb("admin", async (db) => {
+    if (!(await teamsStatus(db)).on) return fail(400, "Set up Teams alerts first");
+    await setReports(db, body.reports as boolean);
     return json(await teamsStatus(db));
   });
 }

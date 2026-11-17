@@ -8,6 +8,7 @@ interface Status {
   on: boolean;
   target: string | null;
   updatedBy: string | null;
+  reports: boolean;
 }
 
 const STEPS = [
@@ -30,7 +31,7 @@ export function TeamsCard() {
     try {
       setStatus(await api<Status>("/api/teams"));
     } catch {
-      setStatus({ on: false, target: null, updatedBy: null });
+      setStatus({ on: false, target: null, updatedBy: null, reports: false });
     }
   }, []);
   useEffect(() => {
@@ -80,6 +81,30 @@ export function TeamsCard() {
     setBusy(false);
   };
 
+  const toggleReports = async () => {
+    if (!status) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      setStatus(await api<Status>("/api/teams", { method: "PATCH", body: JSON.stringify({ reports: !status.reports }) }));
+    } catch (err) {
+      setMessage({ tone: "error", text: err instanceof Error ? err.message : "Could not change the reports" });
+    }
+    setBusy(false);
+  };
+
+  const reportNow = async () => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await api("/api/teams/report", { method: "POST" });
+      setMessage({ tone: "ok", text: "Today's report has been posted to Teams." });
+    } catch (err) {
+      setMessage({ tone: "error", text: err instanceof Error ? err.message : "The report could not be posted." });
+    }
+    setBusy(false);
+  };
+
   const showForm = status && (!status.on || editing);
 
   return (
@@ -114,6 +139,24 @@ export function TeamsCard() {
           </>
         )}
       </div>
+
+      {status?.on && !editing && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-ink-100 pt-3">
+          <label className="flex min-w-0 flex-1 cursor-pointer items-start gap-3">
+            <input type="checkbox" className="check mt-0.5" checked={status.reports} disabled={busy} onChange={toggleReports} />
+            <span>
+              <span className="block font-semibold text-ink-900">Daily reports to Teams</span>
+              <span className="text-[12px] text-ink-600">
+                At 10:00, 15:00 and 18:00 on working days: checks done and not done (by accountable and responsible
+                person) and any count mismatches.
+              </span>
+            </span>
+          </label>
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={reportNow}>
+            Send report now
+          </button>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={save} className="mt-3 border-t border-ink-100 pt-3">

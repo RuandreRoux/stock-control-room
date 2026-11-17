@@ -13,6 +13,8 @@ interface TeamsDoc {
   appUrl: string;
   updatedAt: Date;
   updatedBy: string;
+  /** Scheduled reports at 10:00, 15:00 and 18:00 on working days. On unless turned off. */
+  reports?: boolean;
 }
 
 const meta = (db: Db) => db.collection<TeamsDoc>("meta");
@@ -44,9 +46,22 @@ function mask(url: string): string {
   }
 }
 
-export async function teamsStatus(db: Db): Promise<{ on: boolean; target: string | null; updatedBy: string | null }> {
+export interface TeamsStatus {
+  on: boolean;
+  target: string | null;
+  updatedBy: string | null;
+  reports: boolean;
+}
+
+export async function teamsStatus(db: Db): Promise<TeamsStatus> {
   const doc = await meta(db).findOne({ _id: "teams" });
-  return doc ? { on: true, target: mask(doc.webhookUrl), updatedBy: doc.updatedBy } : { on: false, target: null, updatedBy: null };
+  return doc
+    ? { on: true, target: mask(doc.webhookUrl), updatedBy: doc.updatedBy, reports: doc.reports !== false }
+    : { on: false, target: null, updatedBy: null, reports: false };
+}
+
+export async function setReports(db: Db, on: boolean): Promise<void> {
+  await meta(db).updateOne({ _id: "teams" }, { $set: { reports: on } });
 }
 
 export async function saveTeams(db: Db, webhookUrl: string, appUrl: string, by: string): Promise<void> {
@@ -65,18 +80,20 @@ export async function removeTeams(db: Db): Promise<void> {
  * Names typed by the public on the sign-up form end up in a Teams card. Teams renders a
  * little markdown, so characters that could turn a name into a link or formatting are removed.
  */
-function plain(text: string): string {
+function plain(text: string, max = 80): string {
   return text
     .replace(/\b(?:https?:\/\/|www\.)\S*/gi, " link removed ")
     .replace(/[[\]()<>*_~`#|\\!]/g, " ")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, 80);
+    .slice(0, max);
 }
 
 export interface TeamsMessage {
   title: string;
   lines: { label: string; value: string }[];
+  /** Headed lists under the main facts, for example the people with checks outstanding. */
+  sections?: { heading: string; rows: string[] }[];
   note?: string;
   buttonTitle: string;
   path: string;
@@ -99,6 +116,10 @@ export function teamsCard(message: TeamsMessage, appUrl: string) {
             ...(message.lines.length
               ? [{ type: "FactSet", facts: message.lines.map((l) => ({ title: l.label, value: plain(l.value) })) }]
               : []),
+            ...(message.sections ?? []).flatMap((section) => [
+              { type: "TextBlock", text: section.heading, weight: "Bolder", wrap: true, spacing: "Medium", separator: true },
+              ...section.rows.map((row) => ({ type: "TextBlock", text: plain(row, 200), wrap: true, spacing: "None" })),
+            ]),
             ...(message.note ? [{ type: "TextBlock", text: message.note, wrap: true, isSubtle: true, spacing: "Medium" }] : []),
           ],
           actions: [{ type: "Action.OpenUrl", title: message.buttonTitle, url: new URL(message.path, appUrl).href }],

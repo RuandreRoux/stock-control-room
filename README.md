@@ -74,6 +74,14 @@ Admins can turn on desktop alerts on Admin > Users ("Turn on alerts"), once per 
 
 An admin can also have new sign-ups posted to a Microsoft Teams channel or chat (Admin > Users > Teams alerts). In Teams, create a workflow from the "Send webhook alerts to a channel" template, copy the address it gives you and paste it on the Admin page. The address is stored in the `meta` collection; only Microsoft workflow addresses are accepted. Names typed on the sign-up form are stripped of formatting characters before they are posted.
 
+### Daily Teams reports
+
+When Teams alerts are set up, the app also posts a report to the same chat at 10:00, 15:00 and 18:00 (SAST) on working days: checks done and not done (grouped by accountable, then responsible person) and any count mismatches, with a link to the dashboard. Admins can switch the reports off, or post one straight away, on Admin > Users.
+
+- The schedule is in `vercel.json` (Vercel Cron, times in UTC: 08:00, 13:00 and 16:00).
+- Each report goes out at most once per day, only on working days and only within two hours of its time.
+- Optional: set `CRON_SECRET` in Vercel so only Vercel's scheduler can trigger the reports.
+
 ## Configuration
 
 See `.env.example`. Set the same variables in Vercel under Project Settings > Environment Variables.
@@ -82,6 +90,7 @@ See `.env.example`. Set the same variables in Vercel under Project Settings > En
 |---|---|---|
 | `MONGODB_URI` | yes | Atlas connection string |
 | `MONGODB_DB` | no | Database name, defaults to `stock_control_room` |
+| `CRON_SECRET` | recommended | Any long random text; only Vercel's scheduler can then trigger the daily reports |
 
 Atlas must allow connections from Vercel (Network Access).
 

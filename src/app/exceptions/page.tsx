@@ -446,14 +446,14 @@ export default function ExceptionsPage() {
                   <Empty>No mismatches between the responsible and DC counts.</Empty>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full min-w-[1100px] text-[13px]">
+                    <table className="w-full min-w-[1400px] text-[13px]">
                       <thead className="bg-ink-50">
                         <tr>
                           <th colSpan={3} />
-                          <th colSpan={3} className={group}>
+                          <th colSpan={4} className={group}>
                             Physical count
                           </th>
-                          <th colSpan={3} className={group}>
+                          <th colSpan={4} className={group}>
                             DC received
                           </th>
                           <th />
@@ -462,10 +462,12 @@ export default function ExceptionsPage() {
                           <th className={th}>Stock movement</th>
                           <th className={th}>From WH</th>
                           <th className={th}>To WH</th>
-                          <th className={`${th} border-l border-ink-200`}>Responsible</th>
+                          <th className={`${th} border-l border-ink-200`}>Document</th>
+                          <th className={th}>Responsible</th>
                           <th className={th}>Accountable</th>
                           <th className={`${th} text-right`}>Completed</th>
-                          <th className={`${th} border-l border-ink-200`}>Responsible</th>
+                          <th className={`${th} border-l border-ink-200`}>Document</th>
+                          <th className={th}>Responsible</th>
                           <th className={th}>Accountable</th>
                           <th className={`${th} text-right`}>Received</th>
                           <th className={`${th} border-l border-ink-200 text-right`}>Difference</th>
@@ -481,12 +483,12 @@ export default function ExceptionsPage() {
                                 </p>
                               ))}
                             </LineCells>
-                            <td className={`${td} border-l border-ink-100 font-semibold text-ink-900`}>
-                              {check.line.responsiblePerson || "N/A"}
-                            </td>
+                            <td className={`${td} border-l border-ink-100`}>{check.line.physicalDocument || "N/A"}</td>
+                            <td className={`${td} font-semibold text-ink-900`}>{check.line.responsiblePerson || "N/A"}</td>
                             <td className={td}>{check.line.physicalAccountablePerson || "N/A"}</td>
                             <td className={num}>{physical}</td>
-                            <td className={`${td} border-l border-ink-100 font-semibold text-ink-900`}>
+                            <td className={`${td} border-l border-ink-100`}>{check.line.systemDocument || "N/A"}</td>
+                            <td className={`${td} font-semibold text-ink-900`}>
                               {check.line.systemResponsiblePerson || "N/A"}
                             </td>
                             <td className={td}>{check.line.systemAccountablePerson || "N/A"}</td>

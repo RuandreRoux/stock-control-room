@@ -80,6 +80,19 @@ export async function removeTeams(db: Db): Promise<void> {
  * Names typed by the public on the sign-up form end up in a Teams card. Teams renders a
  * little markdown, so characters that could turn a name into a link or formatting are removed.
  */
+/**
+ * For text built by the app from checklist lines: removes only what Teams could turn into a
+ * link or formatting, and keeps ordinary punctuation such as brackets, colons and %.
+ */
+export function cardText(text: string, max = 200): string {
+  return text
+    .replace(/\b(?:https?:\/\/|www\.)\S*/gi, " link removed ")
+    .replace(/[[\]<>*_~`#|\\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
 function plain(text: string, max = 80): string {
   return text
     .replace(/\b(?:https?:\/\/|www\.)\S*/gi, " link removed ")
@@ -91,9 +104,11 @@ function plain(text: string, max = 80): string {
 
 export interface TeamsMessage {
   title: string;
+  /** A line under the title, for example which documents the report covers. */
+  subtitle?: string;
   lines: { label: string; value: string }[];
-  /** Headed lists under the main facts, for example the people with checks outstanding. */
-  sections?: { heading: string; rows: string[] }[];
+  /** Ready-made card elements (built with the helpers below) placed after the facts. */
+  blocks?: object[];
   note?: string;
   buttonTitle: string;
   path: string;
@@ -113,13 +128,13 @@ export function teamsCard(message: TeamsMessage, appUrl: string) {
           body: [
             { type: "TextBlock", text: "Stock Control Room", size: "Small", weight: "Bolder", color: "Good", spacing: "None" },
             { type: "TextBlock", text: message.title, size: "Large", weight: "Bolder", wrap: true, spacing: "Small" },
+            ...(message.subtitle
+              ? [{ type: "TextBlock", text: cardText(message.subtitle), isSubtle: true, wrap: true, spacing: "None" }]
+              : []),
             ...(message.lines.length
               ? [{ type: "FactSet", facts: message.lines.map((l) => ({ title: l.label, value: plain(l.value) })) }]
               : []),
-            ...(message.sections ?? []).flatMap((section) => [
-              { type: "TextBlock", text: section.heading, weight: "Bolder", wrap: true, spacing: "Medium", separator: true },
-              ...section.rows.map((row) => ({ type: "TextBlock", text: plain(row, 200), wrap: true, spacing: "None" })),
-            ]),
+            ...(message.blocks ?? []),
             ...(message.note ? [{ type: "TextBlock", text: message.note, wrap: true, isSubtle: true, spacing: "Medium" }] : []),
           ],
           actions: [{ type: "Action.OpenUrl", title: message.buttonTitle, url: new URL(message.path, appUrl).href }],

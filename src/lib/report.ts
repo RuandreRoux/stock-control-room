@@ -1,7 +1,7 @@
 import type { Db } from "mongodb";
 import { getDay } from "./data";
 import { analyse, stepInfo, summarise } from "./logic";
-import type { TeamsMessage } from "./teams";
+import { cardText, type TeamsMessage } from "./teams";
 import { formatDay, formatTime, isWorkingDay, sastDate, sheetsInPlay, windowLabel } from "./time";
 
 /** The scheduled report times (SAST). */
@@ -14,14 +14,30 @@ export type ReportSlot = keyof typeof REPORT_SLOTS;
 
 const MAX_ROWS = 12;
 
-function limit(rows: string[], what: string): string[] {
-  return rows.length > MAX_ROWS ? [...rows.slice(0, MAX_ROWS), `...and ${rows.length - MAX_ROWS} more ${what} on the dashboard`] : rows;
+type Tone = "Good" | "Attention" | "Warning" | "Default";
+
+/** A big number with a small label underneath, for the row at the top of the card. */
+function stat(value: string, label: string, color: Tone) {
+  return {
+    type: "Column",
+    width: "stretch",
+    items: [
+      { type: "TextBlock", text: value, size: "ExtraLarge", weight: "Bolder", color, spacing: "None" },
+      { type: "TextBlock", text: label, size: "Small", isSubtle: true, wrap: true, spacing: "None" },
+    ],
+  };
 }
+
+function heading(text: string) {
+  return { type: "TextBlock", text, weight: "Bolder", size: "Medium", spacing: "Large", separator: true, wrap: true };
+}
+
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * The report on the sheet due today (yesterday's working day: documents from 06:00 that
  * day until 05:59 today, counts due at 10:00 today), as a Teams card: totals, who still
- * owes checks, and count mismatches. It ends with how far today's sheet has got.
+ * owes checks (by accountable, then responsible person) and count mismatches.
  */
 export async function buildReport(db: Db, title: string, note?: string): Promise<TeamsMessage | null> {
   const today = sastDate();
@@ -32,61 +48,115 @@ export async function buildReport(db: Db, title: string, note?: string): Promise
   const summary = summarise(due, checks, now);
   const done = summary.totalChecks - summary.notDone;
 
-  // Checks not done, grouped by accountable person, then responsible person.
-  const byAccountable = new Map<string, Map<string, number>>();
-  const mismatches: string[] = [];
+  // Checks not done: accountable person -> responsible person -> counts and DC confirmations.
+  const byAccountable = new Map<string, Map<string, { count: number; dc: number }>>();
+  const mismatches: { movement: string; route: string; who: string; counted: number; received: number }[] = [];
   for (const check of checks) {
     const a = analyse(check, now);
     for (const step of a.notDone) {
       const info = stepInfo(check.line, step);
-      const acc = info.accountable || "N/A";
-      const resp = `${info.responsible || "N/A"} - ${step === "physical" ? "count" : "DC received"}`;
-      const people = byAccountable.get(acc) ?? new Map<string, number>();
-      people.set(resp, (people.get(resp) ?? 0) + 1);
-      byAccountable.set(acc, people);
+      const people = byAccountable.get(info.accountable || "N/A") ?? new Map();
+      const entry = people.get(info.responsible || "N/A") ?? { count: 0, dc: 0 };
+      if (step === "physical") entry.count += 1;
+      else entry.dc += 1;
+      people.set(info.responsible || "N/A", entry);
+      byAccountable.set(info.accountable || "N/A", people);
     }
     if (a.mismatch) {
-      const from = check.line.fromWarehouse && check.line.fromWarehouse !== "N/A" ? ` from ${check.line.fromWarehouse}` : "";
-      const to = check.line.toWarehouse && check.line.toWarehouse !== "N/A" ? ` to ${check.line.toWarehouse}` : "";
-      mismatches.push(
-        `${check.line.stockMovement}${from}${to}: ${check.line.responsiblePerson} counted ${check.physical.count ?? 0}, DC received ${check.received.count ?? 0}`,
-      );
+      const from = check.line.fromWarehouse && check.line.fromWarehouse !== "N/A" ? check.line.fromWarehouse : "";
+      const to = check.line.toWarehouse && check.line.toWarehouse !== "N/A" ? check.line.toWarehouse : "";
+      mismatches.push({
+        movement: check.line.stockMovement,
+        route: from && to ? `${from} to ${to}` : from ? `From ${from}` : to ? `To ${to}` : "",
+        who: check.line.responsiblePerson,
+        counted: check.physical.count ?? 0,
+        received: check.received.count ?? 0,
+      });
     }
   }
-  const notDoneRows = [...byAccountable.entries()]
-    .map(([acc, people]) => {
-      const total = [...people.values()].reduce((n, v) => n + v, 0);
-      const detail = [...people.entries()]
-        .sort((x, y) => y[1] - x[1])
-        .map(([resp, n]) => `${resp} ${n}`)
-        .join(", ");
-      return { total, text: `${acc} (accountable): ${total} not done. ${detail}` };
-    })
-    .sort((x, y) => y.total - x.total)
-    .map((r) => r.text);
 
-  const sections: TeamsMessage["sections"] = [];
-  if (summary.notDone > 0) sections.push({ heading: "Checks not done", rows: limit(notDoneRows, "people") });
-  if (mismatches.length > 0) sections.push({ heading: "Count mismatches", rows: limit(mismatches, "lines") });
+  const accountables = [...byAccountable.entries()]
+    .map(([name, people]) => ({
+      name,
+      total: [...people.values()].reduce((n, p) => n + p.count + p.dc, 0),
+      people: [...people.entries()].sort((x, y) => y[1].count + y[1].dc - (x[1].count + x[1].dc)),
+    }))
+    .sort((x, y) => y.total - x.total);
 
-  const todays = summarise(current, await getDay(db, current, today), now);
+  const blocks: object[] = [
+    {
+      type: "ColumnSet",
+      spacing: "Medium",
+      columns: [
+        stat(`${done}/${summary.totalChecks}`, `checks done (${summary.totalChecks ? Math.round((done / summary.totalChecks) * 100) : 0}%)`, done === summary.totalChecks ? "Good" : "Default"),
+        stat(String(summary.notDone), "checks not done", summary.notDone ? "Attention" : "Good"),
+        stat(String(summary.mismatches), summary.mismatches === 1 ? "count mismatch" : "count mismatches", summary.mismatches ? "Attention" : "Good"),
+      ],
+    },
+  ];
+
+  if (accountables.length) {
+    blocks.push(heading("Checks not done"));
+    for (const acc of accountables.slice(0, MAX_ROWS)) {
+      blocks.push(
+        { type: "TextBlock", text: `${cardText(acc.name, 80)} (accountable): ${acc.total} not done`, weight: "Bolder", wrap: true, spacing: "Medium" },
+        {
+          type: "FactSet",
+          spacing: "Small",
+          facts: acc.people.map(([person, n]) => ({
+            title: cardText(person, 60),
+            value: [n.count ? plural(n.count, "count", "counts") : "", n.dc ? plural(n.dc, "DC confirmation", "DC confirmations") : ""]
+              .filter(Boolean)
+              .join(", "),
+          })),
+        },
+      );
+    }
+    if (accountables.length > MAX_ROWS) {
+      blocks.push({ type: "TextBlock", text: `...and ${accountables.length - MAX_ROWS} more on the dashboard`, isSubtle: true, wrap: true });
+    }
+  }
+
+  if (mismatches.length) {
+    blocks.push(heading("Count mismatches"));
+    for (const m of mismatches.slice(0, MAX_ROWS)) {
+      blocks.push({
+        type: "Container",
+        spacing: "Medium",
+        items: [
+          { type: "TextBlock", text: cardText(m.movement, 120), weight: "Bolder", wrap: true },
+          ...(m.route ? [{ type: "TextBlock", text: cardText(m.route, 160), isSubtle: true, wrap: true, spacing: "None" }] : []),
+          {
+            type: "TextBlock",
+            text: `${cardText(m.who, 60)} counted ${m.counted}, DC received ${m.received} (difference ${m.received - m.counted > 0 ? "+" : ""}${m.received - m.counted})`,
+            color: "Attention",
+            wrap: true,
+            spacing: "None",
+          },
+        ],
+      });
+    }
+    if (mismatches.length > MAX_ROWS) {
+      blocks.push({ type: "TextBlock", text: `...and ${mismatches.length - MAX_ROWS} more on the dashboard`, isSubtle: true, wrap: true });
+    }
+  }
+
+  const time = formatTime(new Date(now).toISOString());
+  const todays = current !== due ? summarise(current, await getDay(db, current, today), now) : null;
+  const allClear = summary.notDone === 0 && summary.mismatches === 0;
 
   return {
     title: `${title}: ${formatDay(due)} sheet`,
-    lines: [
-      { label: "Documents", value: windowLabel(due) },
-      { label: "Checks done", value: `${done} of ${summary.totalChecks} (${summary.totalChecks ? Math.round((done / summary.totalChecks) * 100) : 0}%)` },
-      { label: "Checks not done", value: `${summary.notDone}${summary.overdue ? ` (${summary.overdue} overdue)` : ""}` },
-      { label: "Count mismatches", value: String(summary.mismatches) },
-      ...(current !== due
-        ? [{ label: `${formatDay(current, false)} sheet`, value: `${todays.totalChecks - todays.notDone} of ${todays.totalChecks} filled in so far` }]
-        : []),
-    ],
-    sections,
-    note:
-      summary.notDone === 0 && summary.mismatches === 0
-        ? `All checks are done and every count matches. As at ${formatTime(new Date(now).toISOString())}.`
-        : `${note ?? "Counts for this sheet were due at 10:00 today."} As at ${formatTime(new Date(now).toISOString())}.`,
+    subtitle: `Documents ${windowLabel(due)}`,
+    lines: [],
+    blocks,
+    note: [
+      allClear ? "All checks are done and every count matches." : (note ?? "Counts for this sheet were due at 10:00 today."),
+      todays ? `${formatDay(current, false)} sheet: ${todays.totalChecks - todays.notDone} of ${todays.totalChecks} filled in so far.` : "",
+      `As at ${time}.`,
+    ]
+      .filter(Boolean)
+      .join(" "),
     buttonTitle: "Open the Exceptions Dashboard",
     path: "/exceptions",
   };

@@ -5,15 +5,16 @@ Replaces the shared Excel checklist so that every team works on one version and 
 
 ## How it works
 
-- A **check day** covers documents from 06:00 on the previous working day until 05:59 on the day (South African time). Monday therefore covers Friday 06:00 until Monday 05:59.
+- **The sheet for a day** collects documents from 06:00 that day until 05:59 on the next working day (a Friday sheet runs until Monday 05:59), so the team fills it in as the day goes.
+- Its counts are due at **10:00 on the next working day**. After 10:00 the team resolves what was reported: data capturers by 15:00, the physical team by the end of that day.
 - Checks run Monday to Friday. Weekends and South African public holidays have no sheet (see `src/lib/time.ts`; once-off declared holidays such as election days are not included).
-- Each line has two checks, both due by the line's physical reporting time (10:00 by default):
+- Every sheet stays editable. The screens show the sheet due today and the one being filled in as large cards, keep a coloured "Working on" bar on screen, announce every switch of sheet, and ask for confirmation before the first change to an earlier sheet.
+- Each line has two checks, both due by the line's physical reporting time (10:00 by default) on the next working day:
   1. **Physical count** - the responsible person counts the completed documents.
   2. **DC received** - the data capturer confirms how many documents were received.
 - The two counts must match. Whether the documents were then captured in the system is not tracked.
 - Ticking a check with no number counts as zero documents. Entering a number ticks the check.
 - Lines whose physical responsible person is `N/A` only have the DC received check.
-- Today's sheet is editable by every signed-in user. Previous days are locked; an admin can unlock a day to correct it.
 
 ## Pages
 
@@ -76,7 +77,7 @@ An admin can also have new sign-ups posted to a Microsoft Teams channel or chat 
 
 ### Daily Teams reports
 
-When Teams alerts are set up, the app also posts a report to the same chat at 10:00, 15:00 and 18:00 (SAST) on working days: checks done and not done (grouped by accountable, then responsible person) and any count mismatches, with a link to the dashboard. Admins can switch the reports off, or post one straight away, on Admin > Users.
+When Teams alerts are set up, the app also posts a report to the same chat at 10:00, 15:00 and 18:00 (SAST) on working days, about the sheet due that day: checks done and not done (grouped by accountable, then responsible person) and any count mismatches, with a link to the dashboard. Admins can switch the reports off, or post one straight away, on Admin > Users.
 
 - The schedule is in `vercel.json` (Vercel Cron, times in UTC: 08:00, 13:00 and 16:00).
 - Each report goes out at most once per day, only on working days and only within two hours of its time.

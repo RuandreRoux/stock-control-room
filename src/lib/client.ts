@@ -35,25 +35,31 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 /**
- * The selected check day lives in the URL (?date=YYYY-MM-DD) so links and reloads keep it.
- * Only working days have a sheet: `latest` is today, or the last working day when today is
- * a weekend or public holiday.
+ * The selected sheet lives in the URL (?date=YYYY-MM-DD) so links and reloads keep it.
+ * Without one, the page shows `fallback` (each page picks the sheet that matters most).
+ * `latest` is the newest sheet that exists: today's, or the last working day's.
  */
-export function useCheckDate(): { date: string; today: string; latest: string; setDate: (d: string) => void } {
+export function useCheckDate(fallback?: string): {
+  date: string;
+  today: string;
+  latest: string;
+  setDate: (d: string) => void;
+} {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
   const today = sastDate();
   const latest = latestWorkingDay(today);
+  const home = fallback && fallback <= latest ? fallback : latest;
   const raw = params.get("date");
-  const date = isValidDate(raw) && raw <= latest ? latestWorkingDay(raw) : latest;
+  const date = isValidDate(raw) && raw <= latest ? latestWorkingDay(raw) : home;
   const setDate = useCallback(
     (d: string) => {
       if (!isValidDate(d)) return;
       const target = d > latest ? latest : latestWorkingDay(d);
-      router.replace(target === latest ? pathname : `${pathname}?date=${target}`, { scroll: false });
+      router.replace(target === home ? pathname : `${pathname}?date=${target}`, { scroll: false });
     },
-    [router, pathname, latest],
+    [router, pathname, latest, home],
   );
   return { date, today, latest, setDate };
 }

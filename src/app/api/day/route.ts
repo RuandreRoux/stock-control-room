@@ -15,8 +15,9 @@ export async function GET(req: Request) {
       date,
       today,
       role: user.role,
-      // Previous days are a record: only an admin can correct them.
-      canEdit: date === today || (date < today && user.role === "admin"),
+      // Every sheet up to today can be changed by everyone; the page makes it very clear which one it is.
+      open: date <= today,
+      canEdit: date <= today,
       checks,
     };
     return json(body);

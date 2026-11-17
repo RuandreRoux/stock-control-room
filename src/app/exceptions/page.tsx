@@ -4,11 +4,11 @@ import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, Clock } from "lu
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Loading } from "@/components/Brand";
-import { DateNav } from "@/components/DateNav";
+import { SheetPicker } from "@/components/SheetPicker";
 import { SERIES, TrendChart, type SeriesKey } from "@/components/TrendChart";
 import { api, useCheckDate, useDay } from "@/lib/client";
 import { analyse, STEP_LABEL, stepInfo, summarise, type DaySummary } from "@/lib/logic";
-import { formatDay } from "@/lib/time";
+import { formatDay, sheetsInPlay } from "@/lib/time";
 import type { DayCheck, StepKey } from "@/lib/types";
 
 type Tab = "notDone" | "mismatch";
@@ -76,7 +76,9 @@ function Empty({ children }: { children: React.ReactNode }) {
 }
 
 export default function ExceptionsPage() {
-  const { date, today, latest, setDate } = useCheckDate();
+  // The dashboard is about the sheet due today: what was missing at 10:00 and what is still open.
+  const [home] = useState(() => sheetsInPlay().due);
+  const { date, today, latest, setDate } = useCheckDate(home);
   const { data, error } = useDay(date);
   const [tab, setTab] = useState<Tab>("notDone");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -191,15 +193,21 @@ export default function ExceptionsPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Exceptions Dashboard</h1>
-          <p className="mt-1 max-w-xl text-[13px] text-ink-600">
-            What still needs attention for the day, and how it compares with recent days. Select a tile to see the lines behind the number.
-          </p>
-        </div>
-        <DateNav date={date} today={today} latest={latest} onChange={setDate} />
+      <div>
+        <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Exceptions Dashboard</h1>
+        <p className="mt-1 max-w-2xl text-[13px] text-ink-600">
+          What still needs attention on a sheet, and how it compares with recent days. Select a tile to see the lines
+          behind the number.
+        </p>
       </div>
+
+      <SheetPicker
+        date={date}
+        today={today}
+        latest={latest}
+        onChange={setDate}
+        live={report?.summary}
+      />
 
       {error && (
         <div role="alert" className="mt-4 flex items-center gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-[13px]">

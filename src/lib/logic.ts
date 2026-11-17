@@ -1,4 +1,4 @@
-import { deadlineMs } from "./time";
+import { deadlineMs, dueDay } from "./time";
 import type { DayCheck, LineFields, StepKey } from "./types";
 
 /**
@@ -109,7 +109,8 @@ export function analyse(check: DayCheck, nowMs: number): Analysis {
   for (const step of STEPS) {
     const entry = check[step];
     const isApplicable = applicable.includes(step);
-    const due = deadlineMs(check.date, stepInfo(check.line, step).due);
+    // A sheet's counts are due on the next working day (for example 10:00).
+    const due = deadlineMs(dueDay(check.date), stepInfo(check.line, step).due);
     steps[step] = {
       applicable: isApplicable,
       done: isApplicable && entry.checked,

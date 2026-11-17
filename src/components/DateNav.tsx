@@ -12,11 +12,14 @@ export function DateNav({
   today,
   latest,
   onChange,
+  compact = false,
 }: {
   date: string;
   today: string;
   latest: string;
   onChange: (d: string) => void;
+  /** Just the arrows and the date box, without the description underneath. */
+  compact?: boolean;
 }) {
   const isLatest = date >= latest;
   const todayOff = nonWorkingReason(today);
@@ -56,6 +59,7 @@ export function DateNav({
           </button>
         )}
       </div>
+      {!compact && (
       <p className="mt-2 text-[13px] text-ink-600">
         <span className="font-semibold text-ink-800">
           {formatDay(date)}
@@ -63,7 +67,8 @@ export function DateNav({
         </span>{" "}
         - documents from {windowLabel(date)}
       </p>
-      {todayOff && isLatest && (
+      )}
+      {!compact && todayOff && isLatest && (
         <p className="text-[12px] text-ink-600">
           Today is {todayOff === "Saturday" || todayOff === "Sunday" ? `a ${todayOff}` : todayOff}, so there is no sheet
           today. Showing the last working day.

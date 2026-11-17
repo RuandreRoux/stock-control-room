@@ -123,12 +123,46 @@ export function latestWorkingDay(date: string): string {
   return isWorkingDay(date) ? date : previousWorkingDay(date);
 }
 
-/**
- * The business window a check day covers: from 06:00 on the previous working day until
- * 05:59 on the day. Monday therefore covers Friday 06:00 until Monday 05:59.
- */
+// --- The sheet for a working day ---
+//
+// The sheet for day D collects the documents from 06:00 on D until 05:59 on the next
+// working day, so the team fills it in as the day goes. Its counts are due at 10:00 on
+// that next working day ("the due day"). After 10:00 the team resolves what was reported
+// (data capturers by 15:00, the physical team by the end of the due day). Every sheet
+// stays editable; the screens make it very clear which sheet is open.
+
+/** The working day on which the sheet for `date` is due (10:00) and resolved (15:00). */
+export const dueDay = (date: string): string => nextWorkingDay(date);
+
+/** Epoch ms when the sheet for `date` stops collecting documents (06:00 on the due day). */
+export const windowEndMs = (date: string): number => deadlineMs(dueDay(date), "06:00");
+
+/** Epoch ms at the end of the sheet's due day (midnight after it), when it becomes an earlier sheet. */
+export const closesMs = (date: string): number => deadlineMs(addDays(dueDay(date), 1), "00:00");
+
 export function windowLabel(date: string): string {
-  return `06:00 ${formatDay(previousWorkingDay(date), false)} until 05:59 ${formatDay(date, false)}`;
+  return `06:00 ${formatDay(date, false)} until 05:59 ${formatDay(dueDay(date), false)}`;
+}
+
+/**
+ * The two sheets in play right now: the one collecting documents (it switches over at
+ * 06:00, not midnight) and the one before it, which is due today.
+ */
+export function sheetsInPlay(nowMs = Date.now()): { current: string; due: string } {
+  const current = latestWorkingDay(sastDate(nowMs - 6 * 60 * 60 * 1000));
+  return { current, due: previousWorkingDay(current) };
+}
+
+export type SheetPhase = "collecting" | "countsDue" | "resolving" | "lastChance" | "closed";
+
+/** Where the sheet for `date` is in its life, using the standard 10:00 and 15:00 times. */
+export function sheetPhase(date: string, nowMs = Date.now()): SheetPhase {
+  const due = dueDay(date);
+  if (nowMs < windowEndMs(date)) return "collecting";
+  if (nowMs < deadlineMs(due, "10:00")) return "countsDue";
+  if (nowMs < deadlineMs(due, "15:00")) return "resolving";
+  if (nowMs < closesMs(date)) return "lastChance";
+  return "closed";
 }
 
 /** HH:MM (SAST) of an ISO timestamp. */

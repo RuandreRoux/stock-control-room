@@ -33,7 +33,6 @@ export async function PATCH(req: Request) {
     const today = sastDate();
     if (date > today) return fail(400, "That day has not started yet");
     if (!isWorkingDay(date)) return fail(400, "There are no checks on weekends or public holidays");
-    if (date < today && user.role !== "admin") return fail(403, "Previous days are read-only");
     const updated = await updateStep(db, date, lineId, step as StepKey, patch, user.name);
     if (!updated) return fail(404, "Line not found for this day");
     return json(updated);

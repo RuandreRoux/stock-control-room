@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertCircle, ChevronDown, Lock, Search } from "lucide-react";
+import { AlertCircle, ChevronDown, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CheckRow, HEADER_GRID } from "@/components/CheckRow";
 import { Loading } from "@/components/Brand";
-import { DateNav } from "@/components/DateNav";
+import { SheetPicker, sheetKind } from "@/components/SheetPicker";
 import { useCheckDate, useDay, useSessionUser, useStored, type StepChange } from "@/lib/client";
-import { analyse, lineMatches, namesOf, STEP_LABEL, STEPS, stepMatches, type Analysis } from "@/lib/logic";
+import { analyse, lineMatches, namesOf, STEP_LABEL, STEPS, stepMatches, summarise, type Analysis } from "@/lib/logic";
+import { formatDay, sheetPhase, sheetsInPlay, windowLabel } from "@/lib/time";
 import type { DayCheck, StepKey } from "@/lib/types";
 
 type Show = "all" | "todo" | "exceptions";
@@ -18,7 +19,12 @@ const SHOW_OPTIONS: { value: Show; label: string }[] = [
 ];
 
 export default function DailyChecksPage() {
-  const { date, today, latest, setDate } = useCheckDate();
+  // Before 10:00 the sheet due today matters most; after that, the one being filled in.
+  const [home] = useState(() => {
+    const { current, due } = sheetsInPlay();
+    return sheetPhase(due) === "countsDue" ? due : current;
+  });
+  const { date, today, latest, setDate } = useCheckDate(home);
   const user = useSessionUser();
   // Filters are remembered per person, so a shared computer does not carry one person's view to the next.
   const [responsible, setResponsible] = useStored(`scr.responsible.${user?.username ?? ""}`);
@@ -34,7 +40,8 @@ export default function DailyChecksPage() {
   // jump away the moment its last box is ticked.
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
-  const [unlocked, setUnlocked] = useState(false);
+  // Earlier sheets ask once before the first change, so nobody edits the wrong day by accident.
+  const [confirmed, setConfirmed] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60000);
@@ -45,14 +52,11 @@ export default function DailyChecksPage() {
   }, [date, responsible, accountable, category, show, search]);
   useEffect(() => {
     setOpen(new Set());
-    setUnlocked(false);
   }, [date]);
 
   const checks = data?.checks;
-  // Previous days stay locked until someone deliberately unlocks them, so the record is not changed by accident.
-  const isPast = date < today;
-  const mayEdit = data?.canEdit ?? false;
-  const canEdit = mayEdit && (!isPast || unlocked);
+  const canEdit = data?.canEdit ?? false;
+  const live = useMemo(() => (checks ? summarise(date, checks, now) : undefined), [checks, date, now]);
 
   // Two separate lists: who does the checks, and who answers for them.
   const { responsibles, accountables } = useMemo(() => {
@@ -156,6 +160,13 @@ export default function DailyChecksPage() {
   const visibleCount = groups.reduce((n, [, list]) => n + list.length, 0);
 
   const onChange = (lineId: string, step: StepKey, change: StepChange) => {
+    if (sheetKind(date) === "older" && !confirmed.has(date)) {
+      const ok = window.confirm(
+        `You are changing the ${formatDay(date)} sheet (documents ${windowLabel(date)}), not the current one.\n\nContinue?`,
+      );
+      if (!ok) return;
+      setConfirmed((prev) => new Set(prev).add(date));
+    }
     setTouched((prev) => (prev.has(lineId) ? prev : new Set(prev).add(lineId)));
     update(lineId, step, change);
   };
@@ -168,34 +179,16 @@ export default function DailyChecksPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Daily Checks</h1>
-          <p className="mt-1 max-w-xl text-[13px] text-ink-600">
-            The responsible person counts the documents; the data capturer confirms how many were received. Tick each
-            check once it is done. A tick with no number counts as zero documents.
-          </p>
-        </div>
-        <DateNav date={date} today={today} latest={latest} onChange={setDate} />
+      <div>
+        <h1 className="font-display text-2xl font-bold tracking-[-0.01em] text-ink-900">Daily Checks</h1>
+        <p className="mt-1 max-w-2xl text-[13px] text-ink-600">
+          The responsible person counts the documents; the data capturer confirms how many were received. Tick each
+          check once it is done. A tick with no number counts as zero documents.
+        </p>
       </div>
 
-      {data && isPast && (
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-ink-200 bg-white px-4 py-3 text-[13px] text-ink-800">
-          <Lock size={16} strokeWidth={1.75} className="flex-none text-ink-600" aria-hidden />
-          <span className="min-w-0 flex-1">
-            {canEdit
-              ? "This previous day is unlocked. Changes you make are saved to the record."
-              : mayEdit
-                ? "You are reviewing a previous day. Entries are locked to protect the record."
-                : "You are reviewing a previous day. Entries are read-only; an admin can correct them."}
-          </span>
-          {mayEdit && (
-            <button type="button" className="btn btn-ghost" onClick={() => setUnlocked((v) => !v)}>
-              {unlocked ? "Lock again" : "Unlock to edit"}
-            </button>
-          )}
-        </div>
-      )}
+      <SheetPicker date={date} today={today} latest={latest} onChange={setDate} live={live} />
+
       {(error || saveError) && (
         <div
           role="alert"

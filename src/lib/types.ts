@@ -68,6 +68,7 @@ export interface DayResponse {
   date: string;
   today: string;
   role: Role;
+  open: boolean;
   canEdit: boolean;
   checks: DayCheck[];
 }

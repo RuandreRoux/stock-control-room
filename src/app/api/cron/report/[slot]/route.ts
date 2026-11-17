@@ -27,7 +27,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slot: st
   if (!authorised(req)) return fail(401, "Not allowed");
   const { slot } = await params;
   if (!(slot in REPORT_SLOTS)) return fail(404, "Unknown report");
-  const { hour, title } = REPORT_SLOTS[slot as ReportSlot];
+  const { hour, title, note } = REPORT_SLOTS[slot as ReportSlot];
 
   return withOpenDb(async (db) => {
     const today = sastDate();
@@ -45,7 +45,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slot: st
       if ((err as { code?: number }).code === 11000) return json({ sent: false, reason: "Already sent" });
       throw err;
     }
-    const report = await buildReport(db, title);
+    const report = await buildReport(db, title, note);
     const result = report ? await postToTeams(db, report) : { ok: false, error: "No report for today" };
     if (!result.ok) {
       await marker.deleteOne({ _id: id }); // let a later run try again

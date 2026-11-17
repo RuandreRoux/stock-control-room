@@ -111,7 +111,11 @@ export async function getDay(db: Db, date: string, today: string): Promise<DayCh
     if (sastDate(l.createdAt) > date) return false;
     return l.active || (l.deactivatedAt !== null && sastDate(l.deactivatedAt) > date);
   });
-  if (missing.length === 0) return sortChecks(existing);
+  // Inactive lines are left out of every sheet, report and dashboard (their entries are kept,
+  // and come back if the line is made active again).
+  const active = new Set(lineDocs.filter((l) => l.active).map((l) => l._id.toHexString()));
+  const onlyActive = (list: DayCheck[]) => list.filter((c) => active.has(c.lineId));
+  if (missing.length === 0) return sortChecks(onlyActive(existing));
 
   const fresh: DayCheck[] = missing.map((l) => ({
     date,
@@ -150,13 +154,16 @@ export async function getDay(db: Db, date: string, today: string): Promise<DayCh
   }
   // Re-read so that two people opening the day at the same moment see the same thing.
   const all = await checks(db).find({ date }, { projection: { _id: 0 } }).toArray();
-  return sortChecks(all);
+  return sortChecks(onlyActive(all));
 }
 
 export async function getChecksInRange(db: Db, from: string, to: string): Promise<DayCheck[]> {
-  return checks(db)
-    .find({ date: { $gte: from, $lte: to } }, { projection: { _id: 0 } })
-    .toArray();
+  const [active, rows] = await Promise.all([
+    lines(db).find({ active: true }, { projection: { _id: 1 } }).toArray(),
+    checks(db).find({ date: { $gte: from, $lte: to } }, { projection: { _id: 0 } }).toArray(),
+  ]);
+  const ids = new Set(active.map((l) => l._id.toHexString()));
+  return rows.filter((c) => ids.has(c.lineId));
 }
 
 export interface StepPatch {

@@ -36,8 +36,9 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 /**
  * The report on the sheet due today (yesterday's working day: documents from 06:00 that
- * day until 05:59 today, counts due at 10:00 today), as a Teams card: totals, who still
- * owes checks (by accountable, then responsible person) and count mismatches.
+ * day until 05:59 today, counts due at 10:00 today), as a Teams card: totals, and who
+ * still owes checks (by accountable, then responsible person). Mismatches are counted,
+ * with a pointer to the dashboard for the details.
  */
 export async function buildReport(db: Db, title: string, note?: string): Promise<TeamsMessage | null> {
   const today = sastDate();
@@ -49,8 +50,8 @@ export async function buildReport(db: Db, title: string, note?: string): Promise
   const done = summary.totalChecks - summary.notDone;
 
   // Checks not done: accountable person -> responsible person -> counts and DC confirmations.
+  // (Count mismatches are only totalled here; the dashboard lists them.)
   const byAccountable = new Map<string, Map<string, { count: number; dc: number }>>();
-  const mismatches: { movement: string; route: string; who: string; counted: number; received: number }[] = [];
   for (const check of checks) {
     const a = analyse(check, now);
     for (const step of a.notDone) {
@@ -61,17 +62,6 @@ export async function buildReport(db: Db, title: string, note?: string): Promise
       else entry.dc += 1;
       people.set(info.responsible || "N/A", entry);
       byAccountable.set(info.accountable || "N/A", people);
-    }
-    if (a.mismatch) {
-      const from = check.line.fromWarehouse && check.line.fromWarehouse !== "N/A" ? check.line.fromWarehouse : "";
-      const to = check.line.toWarehouse && check.line.toWarehouse !== "N/A" ? check.line.toWarehouse : "";
-      mismatches.push({
-        movement: check.line.stockMovement,
-        route: from && to ? `${from} to ${to}` : from ? `From ${from}` : to ? `To ${to}` : "",
-        who: check.line.responsiblePerson,
-        counted: check.physical.count ?? 0,
-        received: check.received.count ?? 0,
-      });
     }
   }
 
@@ -117,28 +107,13 @@ export async function buildReport(db: Db, title: string, note?: string): Promise
     }
   }
 
-  if (mismatches.length) {
-    blocks.push(heading("Count mismatches"));
-    for (const m of mismatches.slice(0, MAX_ROWS)) {
-      blocks.push({
-        type: "Container",
-        spacing: "Medium",
-        items: [
-          { type: "TextBlock", text: cardText(m.movement, 120), weight: "Bolder", wrap: true },
-          ...(m.route ? [{ type: "TextBlock", text: cardText(m.route, 160), isSubtle: true, wrap: true, spacing: "None" }] : []),
-          {
-            type: "TextBlock",
-            text: `${cardText(m.who, 60)} counted ${m.counted}, DC received ${m.received} (difference ${m.received - m.counted > 0 ? "+" : ""}${m.received - m.counted})`,
-            color: "Attention",
-            wrap: true,
-            spacing: "None",
-          },
-        ],
-      });
-    }
-    if (mismatches.length > MAX_ROWS) {
-      blocks.push({ type: "TextBlock", text: `...and ${mismatches.length - MAX_ROWS} more on the dashboard`, isSubtle: true, wrap: true });
-    }
+  if (summary.mismatches) {
+    blocks.push(heading("Count mismatches"), {
+      type: "TextBlock",
+      text: `${plural(summary.mismatches, "line has", "lines have")} a different count from the responsible person and the DC. Open the Exceptions Dashboard to see them.`,
+      wrap: true,
+      spacing: "Small",
+    });
   }
 
   const time = formatTime(new Date(now).toISOString());

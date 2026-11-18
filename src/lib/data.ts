@@ -193,7 +193,11 @@ export async function updateStep(
   const current = await checks(db).findOne({ date, lineId });
   if (!current) return null;
   const set: Record<string, unknown> = {};
-  if (patch.comment !== undefined) set[`${step}.comment`] = patch.comment;
+  if (patch.comment !== undefined && patch.comment !== current[step].comment) {
+    set[`${step}.comment`] = patch.comment;
+    set[`${step}.commentBy`] = patch.comment ? by : null;
+    set[`${step}.commentAt`] = patch.comment ? new Date().toISOString() : null;
+  }
   if (patch.checked !== undefined) {
     const entry = current[step];
     set[`${step}.checked`] = patch.checked;

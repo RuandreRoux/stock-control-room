@@ -40,7 +40,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ slot: st
     const marker = db.collection<{ _id: string; at: Date; source: string }>("meta");
     const id = `report:${today}:${slot}`;
     // Who asked, so the Admin page can show when and how each report went out.
-    const source = new URL(req.url).searchParams.get("source") === "github" ? "GitHub" : "Other";
+    const asked = new URL(req.url).searchParams.get("source");
+    const source = asked === "github" ? "GitHub" : asked === "timer" ? "Timer" : "Other";
     try {
       await marker.insertOne({ _id: id, at: new Date(), source });
     } catch (err) {

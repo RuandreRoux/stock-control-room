@@ -32,6 +32,9 @@ export interface StepEntry {
   /** When the check was first ticked (ISO). */
   at: string | null;
   by: string | null;
+  /** Who last wrote the comment, and when (ISO). */
+  commentBy?: string | null;
+  commentAt?: string | null;
 }
 
 /** One line on one check day, with the line details as they were on that day. */

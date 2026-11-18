@@ -4,6 +4,7 @@ import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, Clock } from "lu
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Loading } from "@/components/Brand";
+import { NoteCell } from "@/components/NoteCell";
 import { ReasonCell } from "@/components/ReasonCell";
 import { SheetPicker } from "@/components/SheetPicker";
 import { SERIES, TrendChart, type SeriesKey } from "@/components/TrendChart";
@@ -378,7 +379,7 @@ export default function ExceptionsPage() {
                                             <table className="w-full rounded-lg bg-white text-[13px]">
                                               <thead>
                                                 <tr>
-                                                  {["Stock movement", "From WH", "To WH", "Check", "Due"].map((h) => (
+                                                  {["Stock movement", "From WH", "To WH", "Check", "Due", "Comment"].map((h) => (
                                                     <th key={h} className="caps px-3 py-1.5 text-left font-semibold">
                                                       {h}
                                                     </th>
@@ -414,6 +415,29 @@ export default function ExceptionsPage() {
                                                           Due by {item.due}
                                                         </span>
                                                       )}
+                                                    </td>
+                                                    <td className="px-3 py-1.5">
+                                                      <NoteCell
+                                                        key={item.check[item.step].commentAt ?? item.check[item.step].comment}
+                                                        text={item.check[item.step].comment}
+                                                        by={item.check[item.step].commentBy}
+                                                        at={item.check[item.step].commentAt}
+                                                        addLabel="Comment"
+                                                        placeholder="Why was this check not done?"
+                                                        label={`Comment on ${STEP_LABEL[item.step]} - ${item.check.line.stockMovement}`}
+                                                        onSave={async (text) => {
+                                                          await api("/api/checks", {
+                                                            method: "PATCH",
+                                                            body: JSON.stringify({
+                                                              date: item.check.date,
+                                                              lineId: item.check.lineId,
+                                                              step: item.step,
+                                                              comment: text,
+                                                            }),
+                                                          });
+                                                          reload();
+                                                        }}
+                                                      />
                                                     </td>
                                                   </tr>
                                                 ))}

@@ -9,8 +9,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const parsed = parseLineFields(body, true);
   if ("error" in parsed) return fail(400, parsed.error);
   const active = typeof body.active === "boolean" ? body.active : undefined;
+  const applyToAll = body.applyToAll === true;
   return withDb("admin", async (db) => {
-    const line = await updateLine(db, id, parsed.fields, active, sastDate());
+    const line = await updateLine(db, id, parsed.fields, active, sastDate(), applyToAll);
     return line ? json(line) : fail(404, "Line not found");
   });
 }

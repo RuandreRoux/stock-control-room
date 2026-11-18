@@ -156,6 +156,7 @@ function LineDialog({
   const ref = useRef<HTMLDialogElement>(null);
   const [fields, setFields] = useState(editing.fields);
   const [active, setActive] = useState(editing.active);
+  const [applyToAll, setApplyToAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -170,7 +171,7 @@ function LineDialog({
     setError(null);
     try {
       if (editing.id) {
-        await api(`/api/lines/${editing.id}`, { method: "PATCH", body: JSON.stringify({ ...fields, active }) });
+        await api(`/api/lines/${editing.id}`, { method: "PATCH", body: JSON.stringify({ ...fields, active, applyToAll }) });
       } else {
         await api("/api/lines", { method: "POST", body: JSON.stringify(fields) });
       }
@@ -232,6 +233,25 @@ function LineDialog({
               </div>
             </fieldset>
           ))}
+          {editing.id && (
+            <label className="flex items-start gap-3 rounded-lg bg-ink-50 p-3">
+              <input
+                type="checkbox"
+                className="check mt-0.5"
+                checked={applyToAll}
+                onChange={(e) => setApplyToAll(e.target.checked)}
+              />
+              <span>
+                <span className="block font-semibold text-ink-900">Also correct all earlier sheets</span>
+                <span className="text-[12px] text-ink-600">
+                  Changes always apply to the sheet being filled in and the sheet due today (and so to the reports).
+                  Tick this to fix a mistake, such as a wrong name, on every earlier sheet too. Leave it unticked when
+                  something has changed from now on, such as a new responsible person, so earlier days keep who was
+                  responsible then.
+                </span>
+              </span>
+            </label>
+          )}
           {editing.id && (
             <label className="flex items-start gap-3 rounded-lg bg-ink-50 p-3">
               <input type="checkbox" className="check mt-0.5" checked={active} onChange={(e) => setActive(e.target.checked)} />
@@ -373,8 +393,8 @@ export default function AdminPage() {
         <>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <p className="max-w-2xl text-[13px] text-ink-600">
-          Add a line or edit any column. Changes apply from today&rsquo;s sheet onwards; previous days keep the details
-          they were checked against.
+          Add a line or edit any column. Changes apply to the sheet being filled in and the sheet due today; earlier
+          sheets keep the details they were checked against unless you choose to correct them too.
         </p>
         <div className="flex gap-2">
           <button

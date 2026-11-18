@@ -2,7 +2,7 @@ import { ObjectId, type Db } from "mongodb";
 import seedLines from "./seed-lines.json";
 import { ensureAuthIndexes } from "./auth";
 import { sortChecks } from "./logic";
-import { isValidTime, isWorkingDay, sastDate } from "./time";
+import { isValidTime, isWorkingDay, sastDate, sheetsInPlay } from "./time";
 import { LINE_FIELD_KEYS, type DayCheck, type Line, type LineFields, type StepEntry } from "./types";
 
 interface LineDoc extends LineFields {
@@ -114,7 +114,17 @@ export async function getDay(db: Db, date: string, today: string): Promise<DayCh
   // Inactive lines are left out of every sheet, report and dashboard (their entries are kept,
   // and come back if the line is made active again).
   const active = new Set(lineDocs.filter((l) => l.active).map((l) => l._id.toHexString()));
-  const onlyActive = (list: DayCheck[]) => list.filter((c) => active.has(c.lineId));
+  // The sheet being filled in and the sheet due today always show each line as it is now,
+  // so a correction on the Admin page reaches them (and the reports) straight away.
+  // Older sheets keep the details they were checked against, unless an admin chose to
+  // apply a change to them too.
+  const byId = new Map(lineDocs.map((l) => [l._id.toHexString(), l]));
+  const inPlay = date >= sheetsInPlay().due;
+  const current = (c: DayCheck): DayCheck => {
+    const doc = inPlay ? byId.get(c.lineId) : undefined;
+    return doc ? { ...c, line: snapshot(doc) } : c;
+  };
+  const onlyActive = (list: DayCheck[]) => list.filter((c) => active.has(c.lineId)).map(current);
   if (missing.length === 0) return sortChecks(onlyActive(existing));
 
   const fresh: DayCheck[] = missing.map((l) => ({
@@ -263,6 +273,8 @@ export async function updateLine(
   fields: Partial<LineFields>,
   active: boolean | undefined,
   today: string,
+  /** Also rewrite the line's details on every earlier sheet (for corrections). */
+  applyToAll = false,
 ): Promise<Line | null> {
   if (!ObjectId.isValid(id)) return null;
   const _id = new ObjectId(id);
@@ -275,9 +287,11 @@ export async function updateLine(
   const doc = await lines(db).findOneAndUpdate({ _id }, { $set: set }, { returnDocument: "after" });
   if (!doc) return null;
 
-  // Today's sheet follows the change; earlier days keep the details they were checked against.
+  // The sheets in play (the one being filled in and the one due today) follow the change.
+  // Earlier sheets keep the details they were checked against, unless applyToAll is set.
   if (doc.active) {
-    await checks(db).updateOne({ date: today, lineId: id }, { $set: { line: snapshot(doc) } });
+    const dates = applyToAll ? {} : { date: { $gte: sheetsInPlay().due } };
+    await checks(db).updateMany({ lineId: id, ...dates }, { $set: { line: snapshot(doc) } });
   } else {
     await checks(db).deleteOne({
       date: today,

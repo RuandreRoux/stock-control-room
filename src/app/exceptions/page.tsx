@@ -379,7 +379,7 @@ export default function ExceptionsPage() {
                                             <table className="w-full rounded-lg bg-white text-[13px]">
                                               <thead>
                                                 <tr>
-                                                  {["Stock movement", "From WH", "To WH", "Check", "Due", "Comment"].map((h) => (
+                                                  {["Stock movement", "From WH", "To WH", "Check", "Document", "Due", "Comment"].map((h) => (
                                                     <th key={h} className="caps px-3 py-1.5 text-left font-semibold">
                                                       {h}
                                                     </th>
@@ -398,6 +398,11 @@ export default function ExceptionsPage() {
                                                     <td className="px-3 py-1.5">{item.check.line.fromWarehouse || "N/A"}</td>
                                                     <td className="px-3 py-1.5">{item.check.line.toWarehouse || "N/A"}</td>
                                                     <td className="whitespace-nowrap px-3 py-1.5">{STEP_LABEL[item.step]}</td>
+                                                    <td className="px-3 py-1.5">
+                                                      {(item.step === "physical"
+                                                        ? item.check.line.physicalDocument
+                                                        : item.check.line.systemDocument) || "N/A"}
+                                                    </td>
                                                     <td className="whitespace-nowrap px-3 py-1.5">
                                                       {item.overdue ? (
                                                         <span className="inline-flex items-center gap-1 font-semibold text-ink-900">

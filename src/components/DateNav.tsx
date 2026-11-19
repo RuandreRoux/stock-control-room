@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { formatDay, nextWorkingDay, nonWorkingReason, previousWorkingDay, windowLabel } from "@/lib/time";
+import { formatDay, nextWorkingDay, nonWorkingReason, previousWorkingDay, windowLabel, FIRST_SHEET } from "@/lib/time";
 
 /**
  * Steps between working days only. `latest` is the newest day that has a sheet:
@@ -30,6 +30,7 @@ export function DateNav({
           type="button"
           className="btn btn-ghost btn-icon"
           aria-label="Previous working day"
+          disabled={date <= FIRST_SHEET}
           onClick={() => onChange(previousWorkingDay(date))}
         >
           <ChevronLeft size={18} strokeWidth={1.75} aria-hidden />
@@ -40,6 +41,7 @@ export function DateNav({
             type="date"
             className="input w-[150px] font-semibold"
             value={date}
+            min={FIRST_SHEET}
             max={latest}
             onChange={(e) => e.target.value && onChange(e.target.value)}
           />

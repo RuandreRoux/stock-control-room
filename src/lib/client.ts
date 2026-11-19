@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { isValidDate, latestWorkingDay, sastDate } from "./time";
+import { FIRST_SHEET, isValidDate, latestWorkingDay, sastDate } from "./time";
 import type { DayCheck, DayResponse, SessionUser, StepKey } from "./types";
 
 /** The signed-in person, provided by the app shell. Null until it is known. */
@@ -52,11 +52,11 @@ export function useCheckDate(fallback?: string): {
   const latest = latestWorkingDay(today);
   const home = fallback && fallback <= latest ? fallback : latest;
   const raw = params.get("date");
-  const date = isValidDate(raw) && raw <= latest ? latestWorkingDay(raw) : home;
+  const date = isValidDate(raw) && raw <= latest && raw >= FIRST_SHEET ? latestWorkingDay(raw) : home;
   const setDate = useCallback(
     (d: string) => {
       if (!isValidDate(d)) return;
-      const target = d > latest ? latest : latestWorkingDay(d);
+      const target = d > latest ? latest : d < FIRST_SHEET ? FIRST_SHEET : latestWorkingDay(d);
       router.replace(target === home ? pathname : `${pathname}?date=${target}`, { scroll: false });
     },
     [router, pathname, latest, home],

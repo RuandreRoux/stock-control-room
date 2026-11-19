@@ -18,6 +18,12 @@ export function isValidTime(s: unknown): s is string {
   return typeof s === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 }
 
+/**
+ * The first sheet: the app went live with the team on 17 Nov 2026. Earlier dates have no
+ * sheet anywhere (an early test sheet for 16 Nov is kept in the database but never shown).
+ */
+export const FIRST_SHEET = "2026-11-17";
+
 export function addDays(date: string, n: number): string {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);

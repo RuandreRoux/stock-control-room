@@ -2,7 +2,7 @@ import { ObjectId, type Db } from "mongodb";
 import seedLines from "./seed-lines.json";
 import { ensureAuthIndexes } from "./auth";
 import { sortChecks } from "./logic";
-import { isValidTime, isWorkingDay, sastDate, sheetsInPlay } from "./time";
+import { FIRST_SHEET, isValidTime, isWorkingDay, sastDate, sheetsInPlay } from "./time";
 import { LINE_FIELD_KEYS, type DayCheck, type Line, type LineFields, type StepEntry } from "./types";
 
 interface LineDoc extends LineFields {
@@ -100,7 +100,7 @@ export async function listLines(db: Db): Promise<Line[]> {
  */
 export async function getDay(db: Db, date: string, today: string): Promise<DayCheck[]> {
   // Checks only run on working days (Monday to Friday, excluding public holidays).
-  if (date > today || !isWorkingDay(date)) return [];
+  if (date > today || date < FIRST_SHEET || !isWorkingDay(date)) return [];
   const [lineDocs, existing] = await Promise.all([
     lines(db).find().toArray(),
     checks(db).find({ date }, { projection: { _id: 0 } }).toArray(),
@@ -170,7 +170,9 @@ export async function getDay(db: Db, date: string, today: string): Promise<DayCh
 export async function getChecksInRange(db: Db, from: string, to: string): Promise<DayCheck[]> {
   const [active, rows] = await Promise.all([
     lines(db).find({ active: true }, { projection: { _id: 1 } }).toArray(),
-    checks(db).find({ date: { $gte: from, $lte: to } }, { projection: { _id: 0 } }).toArray(),
+    checks(db)
+      .find({ date: { $gte: from < FIRST_SHEET ? FIRST_SHEET : from, $lte: to } }, { projection: { _id: 0 } })
+      .toArray(),
   ]);
   const ids = new Set(active.map((l) => l._id.toHexString()));
   return rows.filter((c) => ids.has(c.lineId));

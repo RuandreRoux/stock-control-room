@@ -7,6 +7,7 @@ Replaces the shared Excel checklist so that every team works on one version and 
 
 - **The sheet for a day** collects documents from 06:00 that day until 05:59 on the next working day (a Friday sheet runs until Monday 05:59), so the team fills it in as the day goes.
 - Its counts are due at **10:00 on the next working day**. After 10:00 the team resolves what was reported: data capturers by 15:00, the physical team by the end of that day.
+- The first sheet is 17 Nov 2026 (`FIRST_SHEET` in `src/lib/time.ts`), when the team started; earlier dates are never shown.
 - Checks run Monday to Friday. Weekends and South African public holidays have no sheet (see `src/lib/time.ts`; once-off declared holidays such as election days are not included).
 - Every sheet stays editable. The screens show the sheet due today and the one being filled in as large cards, keep a coloured "Working on" bar on screen, announce every switch of sheet, and ask for confirmation before the first change to an earlier sheet.
 - Each line has two checks, both due by the line's physical reporting time (10:00 by default) on the next working day:

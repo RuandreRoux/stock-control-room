@@ -3,7 +3,7 @@
 import { Check, Clock, MessagesSquare } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client";
-import { deadlineMs, formatDay, formatTime, isWorkingDay, latestWorkingDay, sastDate, sheetsInPlay } from "@/lib/time";
+import { deadlineMs, FIRST_SHEET, formatDay, formatTime, isWorkingDay, latestWorkingDay, sastDate, sheetsInPlay } from "@/lib/time";
 
 interface Status {
   on: boolean;
@@ -190,6 +190,7 @@ export function TeamsCard() {
                 type="date"
                 className="input w-[160px]"
                 value={reportDate}
+                min={FIRST_SHEET}
                 max={latestWorkingDay(sastDate())}
                 onChange={(e) => e.target.value && setReportDate(e.target.value)}
               />

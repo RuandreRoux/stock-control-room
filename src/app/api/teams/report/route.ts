@@ -1,7 +1,7 @@
 import { fail, json, readBody, withDb } from "@/lib/api";
 import { buildReport } from "@/lib/report";
 import { postToTeams } from "@/lib/teams";
-import { isValidDate, isWorkingDay, latestWorkingDay, sastDate } from "@/lib/time";
+import { FIRST_SHEET, isValidDate, isWorkingDay, latestWorkingDay, sastDate } from "@/lib/time";
 
 /** Post a report to Teams now (admin): for the sheet due today, or for a sheet the admin chooses. */
 export async function POST(req: Request) {
@@ -11,6 +11,7 @@ export async function POST(req: Request) {
   if (date !== undefined && date !== null && date !== "") {
     if (!isValidDate(date)) return fail(400, "Choose a valid date");
     if (date > latestWorkingDay(sastDate())) return fail(400, "That sheet has not started yet");
+    if (date < FIRST_SHEET) return fail(400, "There are no sheets before 17 Nov 2026");
     if (!isWorkingDay(date)) return fail(400, "There is no sheet on weekends or public holidays");
   }
   return withDb("admin", async (db) => {

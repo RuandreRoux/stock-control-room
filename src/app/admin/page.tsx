@@ -3,6 +3,7 @@
 import { AlertCircle, Copy, Pencil, Plus, Search, X } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ComboField } from "@/components/ComboField";
 import { UsersAdmin } from "@/components/UsersAdmin";
 import { api, useSessionUser } from "@/lib/client";
 import { namesOf } from "@/lib/logic";
@@ -210,23 +211,22 @@ function LineDialog({
                         people={suggestions.people}
                         onChange={(value) => setFields((prev) => ({ ...prev, [key]: value }))}
                       />
-                    ) : (
+                    ) : type === "time" ? (
                       <input
-                        type={type ?? "text"}
+                        type="time"
                         className="input"
-                        maxLength={200}
-                        required={key === "category" || key === "stockMovement" || type === "time"}
-                        list={type ? undefined : `options-${key}`}
+                        required
                         value={fields[key]}
                         onChange={(e) => setFields((prev) => ({ ...prev, [key]: e.target.value }))}
                       />
-                    )}
-                    {!type && (
-                      <datalist id={`options-${key}`}>
-                        {(suggestions[key] ?? []).map((v) => (
-                          <option key={v} value={v} />
-                        ))}
-                      </datalist>
+                    ) : (
+                      <ComboField
+                        label={label}
+                        value={fields[key]}
+                        options={suggestions[key] ?? []}
+                        required={key === "category" || key === "stockMovement"}
+                        onChange={(value) => setFields((prev) => ({ ...prev, [key]: value }))}
+                      />
                     )}
                   </label>
                 ))}

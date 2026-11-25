@@ -10,7 +10,7 @@ export async function GET() {
     const today = sastDate();
     const sent = await db
       .collection<{ _id: string; at: Date; source?: string }>("meta")
-      .find({ _id: { $in: ["10", "15", "18"].map((slot) => `report:${today}:${slot}`) } })
+      .find({ _id: { $in: ["10", "15", "17"].map((slot) => `report:${today}:${slot}`) } })
       .toArray();
     const log = sent.map((m) => ({ slot: m._id.split(":").pop(), at: m.at.toISOString(), source: m.source ?? "Other" }));
     return json({ ...(await teamsStatus(db)), log });

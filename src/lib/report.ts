@@ -8,7 +8,7 @@ import { dueDay, formatDay, formatTime, isWorkingDay, sastDate, sheetsInPlay, wi
 export const REPORT_SLOTS = {
   "10": { hour: 10, title: "10:00 report", note: "Physical counts were due at 10:00 today; system counts (DC) are due by 15:00." },
   "15": { hour: 15, title: "15:00 report", note: "System counts (DC) were due at 15:00 today." },
-  "18": { hour: 18, title: "End of day report", note: "The physical team has until the end of today to resolve their issues." },
+  "17": { hour: 17, title: "End of day report", note: "The physical team has until the end of today to resolve their issues." },
 } as const;
 export type ReportSlot = keyof typeof REPORT_SLOTS;
 

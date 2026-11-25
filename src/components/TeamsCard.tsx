@@ -152,14 +152,14 @@ export function TeamsCard() {
             <span>
               <span className="block font-semibold text-ink-900">Daily reports to Teams</span>
               <span className="text-[12px] text-ink-600">
-                At 10:00, 15:00 and 18:00 on working days, about the sheet due that day: checks done and not done (by
+                At 10:00, 15:00 and 17:00 on working days, about the sheet due that day: checks done and not done (by
                 accountable and responsible person) and the number of count mismatches.
               </span>
             </span>
           </label>
           {status.reports && isWorkingDay(sastDate()) && (
             <ul className="w-full space-y-0.5 text-[12px] text-ink-800" aria-label="Today's reports">
-              {(["10", "15", "18"] as const).map((slot) => {
+              {(["10", "15", "17"] as const).map((slot) => {
                 const sent = status.log?.find((l) => l.slot === slot);
                 const dueAt = deadlineMs(sastDate(), `${slot}:00`);
                 const late = sent ? Math.round((new Date(sent.at).getTime() - dueAt) / 60000) : 0;

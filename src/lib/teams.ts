@@ -13,7 +13,7 @@ interface TeamsDoc {
   appUrl: string;
   updatedAt: Date;
   updatedBy: string;
-  /** Scheduled reports at 10:00, 15:00 and 18:00 on working days. On unless turned off. */
+  /** Scheduled reports at 10:00, 15:00 and 17:00 on working days. On unless turned off. */
   reports?: boolean;
 }
 

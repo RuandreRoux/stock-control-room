@@ -79,9 +79,9 @@ An admin can also have new sign-ups posted to a Microsoft Teams channel or chat 
 
 ### Daily Teams reports
 
-When Teams alerts are set up, the app also posts a report to the same chat at 10:00, 15:00 and 18:00 (SAST) on working days, about the sheet due that day: checks done and not done (grouped by accountable, then responsible person) and any count mismatches, with a link to the dashboard. Admins can switch the reports off, or post one straight away for any sheet they choose, on Admin > Users.
+When Teams alerts are set up, the app also posts a report to the same chat at 10:00, 15:00 and 17:00 (SAST) on working days, about the sheet due that day: checks done and not done (grouped by accountable, then responsible person) and any count mismatches, with a link to the dashboard. Admins can switch the reports off, or post one straight away for any sheet they choose, on Admin > Users.
 
-- The schedule is an external timer (cron-job.org) that calls `/api/cron/report/10`, `/15` and `/18` with `?source=timer` at 10:05, 15:05 and 18:05 on weekdays. A GitHub Actions workflow (`.github/workflows/teams-reports.yml`) is the backup, at 10, 20 and 30 minutes past. The app sends each report only once per day. The Admin page shows when each of today's reports went out and who sent it.
+- The schedule is an external timer (cron-job.org) that calls `/api/cron/report/10`, `/15` and `/17` with `?source=timer` at 10:05, 15:05 and 17:05 on weekdays. A GitHub Actions workflow (`.github/workflows/teams-reports.yml`) is the backup, at 10, 20 and 30 minutes past. The app sends each report only once per day. The Admin page shows when each of today's reports went out and who sent it.
 - The GitHub workflow can also be run by hand (Actions > Teams reports > Run workflow).
 - Each report goes out at most once per day, only on working days and only within two hours of its time.
 - Optional: set `CRON_SECRET` in Vercel and the same value as a GitHub Actions secret called `CRON_SECRET`, so only the schedule can trigger the reports.

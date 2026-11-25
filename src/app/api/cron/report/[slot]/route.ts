@@ -18,7 +18,7 @@ function authorised(req: Request): boolean {
 }
 
 /**
- * Called by the GitHub Actions schedule shortly after 10:00, 15:00 and 18:00 (SAST) on weekdays. Posts the
+ * Called by the GitHub Actions schedule shortly after 10:00, 15:00 and 17:00 (SAST) on weekdays. Posts the
  * report to the Teams chat. Each report goes out at most once per day, only on working
  * days, and only within two hours of its time, so calling this address early, late or
  * repeatedly cannot produce extra or misleading reports.

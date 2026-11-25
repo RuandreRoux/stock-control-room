@@ -10,9 +10,9 @@ Replaces the shared Excel checklist so that every team works on one version and 
 - The first sheet is 17 Nov 2026 (`FIRST_SHEET` in `src/lib/time.ts`), when the team started; earlier dates are never shown.
 - Checks run Monday to Friday. Weekends and South African public holidays have no sheet (see `src/lib/time.ts`; once-off declared holidays such as election days are not included).
 - Every sheet stays editable. The screens show the sheet due today and the one being filled in as large cards, keep a coloured "Working on" bar on screen, announce every switch of sheet, and ask for confirmation before the first change to an earlier sheet.
-- Each line has two checks, both due by the line's physical reporting time (10:00 by default) on the next working day:
-  1. **Physical count** - the responsible person counts the completed documents.
-  2. **DC received** - the data capturer confirms how many documents were received.
+- Each line has two checks, due on the next working day:
+  1. **Physical count** - the responsible person counts the completed documents, by the line's physical reporting time (10:00 by default).
+  2. **System count (DC)** - the data capturer confirms how many documents were received, by the line's system reporting time (15:00 by default).
 - The two counts must match. A System count (DC) entered while the Physical count is still missing is also a count mismatch (and the physical count stays "not done"). Whether the documents were then captured in the system is not tracked.
 - Ticking a check with no number counts as zero documents. Entering a number ticks the check.
 - Lines whose physical responsible person is `N/A` only have the DC received check.

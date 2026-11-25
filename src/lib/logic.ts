@@ -41,11 +41,11 @@ export function stepInfo(line: LineFields, step: StepKey): StepInfo {
       document: line.physicalDocument,
     };
   }
-  // The data capturer confirms the hand-over by the physical reporting time.
+  // The data capturer submits the System count by the system reporting time (15:00 by default).
   return {
     responsible: line.systemResponsiblePerson,
     accountable: line.systemAccountablePerson,
-    due: line.physicalReportingTime,
+    due: line.systemReportingTime,
     document: line.physicalDocument,
   };
 }

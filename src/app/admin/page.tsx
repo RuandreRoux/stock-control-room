@@ -59,7 +59,7 @@ const SECTIONS: {
   },
   {
     title: "System stock",
-    hint: "The responsible person here is the data capturer who confirms the documents were received, by the physical reporting time. The system document and reporting time are kept for reference.",
+    hint: "The responsible person here is the data capturer, who submits the System count (DC) by the system reporting time (15:00 by default).",
     fields: [
       { key: "systemDocument", label: "Document" },
       { key: "systemResponsiblePerson", label: "Responsible person", type: "person" },

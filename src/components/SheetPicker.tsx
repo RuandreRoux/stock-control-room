@@ -23,8 +23,8 @@ export const KIND_STYLE: Record<SheetKind, { bar: string; ring: string; chip: st
 
 const PHASE_TEXT: Record<SheetPhase, string> = {
   collecting: "Collecting documents",
-  countsDue: "Counts due by 10:00 today",
-  resolving: "Resolve issues: data capturers by 15:00",
+  countsDue: "Physical counts due by 10:00 today",
+  resolving: "System counts (DC) due by 15:00 today",
   lastChance: "Resolve remaining issues today",
   closed: "Earlier sheet",
 };
@@ -147,7 +147,7 @@ export function SheetPicker({
         </span>
         <span className="font-display text-[22px] font-bold leading-tight text-ink-900">{formatDay(d)} sheet</span>
         <span className="text-[12px] text-ink-600">
-          Documents {windowLabel(d)}. Counts due {formatDay(dueDay(d), false)} 10:00.
+          Documents {windowLabel(d)}. Due {formatDay(dueDay(d), false)}: physical counts 10:00, system counts 15:00.
         </span>
         <StatusLine summary={summaryFor(d)} phase={phase} kind={k} />
       </button>

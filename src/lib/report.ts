@@ -6,8 +6,8 @@ import { dueDay, formatDay, formatTime, isWorkingDay, sastDate, sheetsInPlay, wi
 
 /** The scheduled report times (SAST). */
 export const REPORT_SLOTS = {
-  "10": { hour: 10, title: "10:00 report", note: "Counts for this sheet were due at 10:00 today." },
-  "15": { hour: 15, title: "15:00 report", note: "Data capturers had until 15:00 to resolve their issues." },
+  "10": { hour: 10, title: "10:00 report", note: "Physical counts were due at 10:00 today; system counts (DC) are due by 15:00." },
+  "15": { hour: 15, title: "15:00 report", note: "System counts (DC) were due at 15:00 today." },
   "18": { hour: 18, title: "End of day report", note: "The physical team has until the end of today to resolve their issues." },
 } as const;
 export type ReportSlot = keyof typeof REPORT_SLOTS;
@@ -36,7 +36,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 
 /**
  * The report on the sheet due today (yesterday's working day: documents from 06:00 that
- * day until 05:59 today, counts due at 10:00 today), as a Teams card: totals, and who
+ * day until 05:59 today; physical counts due 10:00 and system counts 15:00 today), as a Teams card: totals, and who
  * still owes checks (by accountable, then responsible person). Mismatches are counted,
  * with a pointer to the dashboard for the details.
  */
@@ -162,7 +162,10 @@ export async function buildReport(
     note: [
       allClear
         ? "All checks are done and every count matches."
-        : (note ?? (due === inPlay.due ? "Counts for this sheet were due at 10:00 today." : `Counts for this sheet were due ${formatDay(dueDay(due), false)} 10:00.`)),
+        : (note ??
+            (due === inPlay.due
+              ? "Physical counts were due at 10:00 today; system counts (DC) are due by 15:00."
+              : `Due ${formatDay(dueDay(due), false)}: physical counts 10:00, system counts (DC) 15:00.`)),
       todays ? `${formatDay(current, false)} sheet: ${todays.totalChecks - todays.notDone} of ${todays.totalChecks} filled in so far.` : "",
       `As at ${time}.`,
     ]

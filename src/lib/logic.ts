@@ -96,8 +96,13 @@ export interface StepState {
 export interface Analysis {
   steps: Record<StepKey, StepState>;
   notDone: StepKey[];
-  /** Responsible count and DC received count are both in and differ. */
+  /**
+   * The counts do not agree: both are in and differ, or the data capturer has submitted a
+   * System count (DC) while the Physical count is still missing.
+   */
   mismatch: boolean;
+  /** The DC has counted but the responsible person has not (part of `mismatch`). */
+  physicalMissing: boolean;
   /** DC received minus responsible count (when both are in). */
   diff: number | null;
   status: RowStatus;
@@ -123,7 +128,10 @@ export function analyse(check: DayCheck, nowMs: number): Analysis {
   const physical = steps.physical.done ? check.physical.count ?? 0 : null;
   const received = steps.received.done ? check.received.count ?? 0 : null;
 
-  const mismatch = physical !== null && received !== null && physical !== received;
+  // A System count (DC) with no Physical count yet is a mismatch too: the DC has captured
+  // documents that nobody has counted on the physical side.
+  const physicalMissing = received !== null && physical === null && steps.physical.applicable;
+  const mismatch = (physical !== null && received !== null && physical !== received) || physicalMissing;
   const diff = physical !== null && received !== null ? received - physical : null;
 
   let status: RowStatus;
@@ -132,7 +140,7 @@ export function analyse(check: DayCheck, nowMs: number): Analysis {
   else if (notDone.length === applicable.length) status = "todo";
   else status = "progress";
 
-  return { steps, notDone, mismatch, diff, status };
+  return { steps, notDone, mismatch, physicalMissing, diff, status };
 }
 
 export interface DaySummary {

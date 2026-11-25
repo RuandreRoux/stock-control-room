@@ -13,7 +13,7 @@ Replaces the shared Excel checklist so that every team works on one version and 
 - Each line has two checks, both due by the line's physical reporting time (10:00 by default) on the next working day:
   1. **Physical count** - the responsible person counts the completed documents.
   2. **DC received** - the data capturer confirms how many documents were received.
-- The two counts must match. Whether the documents were then captured in the system is not tracked.
+- The two counts must match. A System count (DC) entered while the Physical count is still missing is also a count mismatch (and the physical count stays "not done"). Whether the documents were then captured in the system is not tracked.
 - Ticking a check with no number counts as zero documents. Entering a number ticks the check.
 - Lines whose physical responsible person is `N/A` only have the DC received check.
 

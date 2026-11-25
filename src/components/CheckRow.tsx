@@ -201,7 +201,13 @@ export function CheckRow({
             note = (
               <>
                 <AlertTriangle size={13} strokeWidth={1.75} className="flex-none text-danger" aria-hidden />
-                <span className="font-semibold text-ink-900">Counts differ</span>
+                <span className="font-semibold text-ink-900">
+                  {!a.physicalMissing
+                    ? "Counts differ"
+                    : step === "physical"
+                      ? "Not submitted, but DC has counted"
+                      : "No physical count to match"}
+                </span>
               </>
             );
           } else if (state.done) {

@@ -118,7 +118,7 @@ export default function ExceptionsPage() {
     if (!checks) return null;
     const summary = summarise(date, checks, now);
     const groups = new Map<string, Map<string, ResponsibleGroup>>();
-    const mismatches: { check: DayCheck; physical: number; received: number; diff: number }[] = [];
+    const mismatches: { check: DayCheck; physical: number | null; received: number; diff: number | null }[] = [];
 
     for (const check of checks) {
       const a = analyse(check, now);
@@ -143,9 +143,9 @@ export default function ExceptionsPage() {
       if (a.mismatch) {
         mismatches.push({
           check,
-          physical: check.physical.count ?? 0,
+          physical: a.physicalMissing ? null : check.physical.count ?? 0,
           received: check.received.count ?? 0,
-          diff: a.diff ?? 0,
+          diff: a.diff,
         });
       }
     }
@@ -186,7 +186,7 @@ export default function ExceptionsPage() {
             series: "mismatches",
             label: "Count mismatches",
             value: report.summary.mismatches,
-            detail: "lines where the responsible and DC counts differ",
+            detail: "lines where the counts differ or the physical count is missing",
             graph: "Count Mismatches per Day",
             hint: "Lines where the data capturer received a different number of documents.",
           },
@@ -469,7 +469,7 @@ export default function ExceptionsPage() {
                 <header className="border-b border-ink-100 px-4 py-3">
                   <h2 className="font-display text-base font-bold text-ink-900">Count mismatches</h2>
                   <p className="text-[12px] text-ink-600">
-                    The responsible person and the data capturer counted a different number of documents.
+                    The data capturer&rsquo;s count does not match the physical count, or the physical count has not been submitted.
                   </p>
                 </header>
                 {report.mismatches.length === 0 ? (
@@ -517,7 +517,13 @@ export default function ExceptionsPage() {
                             <td className={`${td} border-l border-ink-100`}>{check.line.physicalDocument || "N/A"}</td>
                             <td className={`${td} font-semibold text-ink-900`}>{check.line.responsiblePerson || "N/A"}</td>
                             <td className={td}>{check.line.physicalAccountablePerson || "N/A"}</td>
-                            <td className={num}>{physical}</td>
+                            <td className={num}>
+                              {physical === null ? (
+                                <span className="font-semibold text-danger">Not submitted</span>
+                              ) : (
+                                physical
+                              )}
+                            </td>
                             <td className={`${td} border-l border-ink-100`}>{check.line.systemDocument || "N/A"}</td>
                             <td className={`${td} font-semibold text-ink-900`}>
                               {check.line.systemResponsiblePerson || "N/A"}
@@ -525,7 +531,7 @@ export default function ExceptionsPage() {
                             <td className={td}>{check.line.systemAccountablePerson || "N/A"}</td>
                             <td className={num}>{received}</td>
                             <td className={`${num} border-l border-ink-100 font-semibold text-ink-900`}>
-                              {diff > 0 ? `+${diff}` : diff}
+                              {diff === null ? "-" : diff > 0 ? `+${diff}` : diff}
                             </td>
                             <td className={`${td} border-l border-ink-100`}>
                               <ReasonCell key={check.reason?.at ?? "none"} check={check} onSaved={reload} />

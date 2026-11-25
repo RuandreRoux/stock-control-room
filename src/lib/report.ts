@@ -143,7 +143,7 @@ export async function buildReport(
   if (summary.mismatches) {
     blocks.push(heading("Count mismatches"), {
       type: "TextBlock",
-      text: `${plural(summary.mismatches, "line has", "lines have")} a different count from the responsible person and the DC. Open the Exceptions Dashboard to see them.`,
+      text: `${plural(summary.mismatches, "line has", "lines have")} a System count (DC) that does not match the Physical count, or has no Physical count yet. Open the Exceptions Dashboard to see them.`,
       wrap: true,
       spacing: "Small",
     });
